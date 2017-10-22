@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "module": "none",
+
+         "types": [
+            "node",
+            "text-encoding"
+         ],
+         "inlineSourceMap": true,
+         "inlineSources": true,
+         
+         "strict": true,
+
+         "outDir": "dist"
+    },
+    "include": [
+        "src/*"
+    ]
+}

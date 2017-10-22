@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Catch the beat beatmap list</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.2.13/dist/semantic.min.css">
+  <script
+    src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.2.13/dist/semantic.min.js"></script>
+  <script src="dist/list-maps.js"></script>
+</head>
+<body>
+  <a href="https://github.com/ekrctb/list-maps"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/365986a132ccd6a44c23a9169022c0b5c890c387/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f7265645f6161303030302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png"></a>
+  <div class="ui padded grid">
+    <div class="row">
+      <div class="ui form nine wide column">
+        <div class="fields">
+          <div class="field">
+            <label>Ranked status</label>
+            <select class="ui dropdown" name="filter_approved_status" value="1">
+              <option value="1">Ranked & Approved</option>
+              <option value="2">Loved</option>
+              <option value="3">Both</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Mode</label>
+            <select class="ui dropdown" name="filter_mode" value="1">
+              <option value="1">Converted</option>
+              <option value="2">Specific</option>
+              <option value="3">Both</option>
+            </select>
+          </div>
+          <div class="field six wide">
+            <label>Search query</label>
+            <input type="text" name="filter_search_query"
+                   placeholder="queries like ar=9 are supported">
+          </div>
+          <div class="field">
+            <label>FC level</label>
+            <select class="ui dropdown" name="filter_fc_level" value="0">
+              <option value="0"></option>
+              <option value="1">No FCs</option>
+              <option value="2">Only EZ FCs</option>
+              <option value="3">Only HR FCs</option>
+              <option value="4">HD FC for #1</option>
+              <option value="5">HR FC for #1</option>
+              <option value="6">HDHR FC for #1</option>
+              <option value="7">HDHR FCs</option>
+              <option value="8">DT FCs</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="four wide column">
+        <p>
+          Latest update: <time id="last-update-time"></time><br>
+          <a href="https://osu.ppy.sh/u/4497706">My osu! profile</a><br>
+          <a href="https://osu.ppy.sh/forum/t/630917">Forum post for comments</a>
+        </p>
+      </div>
+    </div>
+    <div class="ui active loader" id="summary-table-loader"></div>
+    <div class="row">
+      <table id="summary-table" class="ui sortable selectable celled very compact table">
+        <thead><tr>
+          <th class="desc-first">Date</th>
+          <th>Map</th>
+          <th class="sorted descending desc-first">Stars</th>
+          <th class="desc-first">pp</th>
+          <th>Length</th>
+          <th>Combo</th>
+          <th>AR</th>
+          <th>CS</th>
+          <th class="desc-first">Misses | Number of FCs</th>
+        </tr></thead>
+        <tbody>
+        </tbody>
+      </table>
+      <tbody></tbody>
+    </div>
+  </div>
+</body>
+</html>
