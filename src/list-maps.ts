@@ -234,7 +234,7 @@ $(() => {
                 row.approach_rate.toFixed(1),
                 row.circle_size.toFixed(1),
                     row.min_misses !== 0 ? (row.min_misses === 1 ? '1 miss' : row.min_misses + ' misses') :
-                    [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(' / ')
+                    [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', ')
             ].map(x => $('<td>').append(x)))[0] as HTMLTableRowElement);
         currentOrderingIndices = summaryRows.map((_, index) => index);
         drawTableForCurrentFiltering();
