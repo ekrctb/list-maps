@@ -65,7 +65,6 @@ let summaryRows: SummaryRow[] = [];
 let unsortedTableRows: HTMLTableRowElement[] = [];
 let currentSortOrder: number[] = [];
 let currentHashLink = '#';
-let truncate
 
 let previousIndices = '';
 function drawTable(indices: number[]) {
