@@ -61,11 +61,10 @@ class SummaryRow {
     }
 }
 
-
-
 let summaryRows: SummaryRow[] = [];
 let unsortedTableRows: HTMLTableRowElement[] = [];
-let currentOrderingIndices: number[] = [];
+let currentSortOrder: number[] = [];
+let currentHashLink = '#';
 
 let previousIndices = '';
 function drawTable(indices: number[]) {
@@ -77,10 +76,9 @@ function drawTable(indices: number[]) {
         .append(indices.map(index => unsortedTableRows[index]));
 }
 
-
 class SearchQuery {
     public readonly check: (row: SummaryRow) => boolean;
-    public readonly hash_str: string;
+    public readonly normalized_source: string;
     constructor(public readonly source: string) {
         const key_to_property_name = {
             'status': 'approved_status',
@@ -93,7 +91,7 @@ class SearchQuery {
             'cs': 'circle_size',
         };
         let check_func_source = 'return true';
-        this.hash_str = '';
+        this.normalized_source = '';
         for (const token of source.split(' ')) {
             const trimmed = token.trim();
             if (trimmed === '') continue;
@@ -105,12 +103,14 @@ class SearchQuery {
                 const val = parseFloat(match[3]);
                 if (isNaN(val)) continue;
                 const prop = (key_to_property_name as any)[key];
-                this.hash_str += ' ' + prop + ' ' + rel + ' ' + val;
+                if (this.normalized_source !== '') this.normalized_source += ' ';
+                this.normalized_source += match[1] + match[2] + match[3];
                 check_func_source += `&&row.${prop}${rel}${val}`;
             } else {
                 const str = trimmed.toLowerCase();
                 const escaped = JSON.stringify(str);
-                this.hash_str += ' ' + escaped;
+                if (this.normalized_source !== '') this.normalized_source += ' ';
+                this.normalized_source += str;
                 check_func_source += `&&row.display_string_lower.indexOf(${escaped})!==-1`;
             }
         }
@@ -118,13 +118,43 @@ class SearchQuery {
     }
 }
 
+const sortKeys = [
+    (x: SummaryRow) => x.approved_date,
+    (x: SummaryRow) => x.display_string,
+    (x: SummaryRow) => x.stars,
+    (x: SummaryRow) => x.pp,
+    (x: SummaryRow) => x.hit_length,
+    (x: SummaryRow) => x.max_combo,
+    (x: SummaryRow) => x.approach_rate,
+    (x: SummaryRow) => x.circle_size,
+    (x: SummaryRow) =>
+        x.fcHDDT * 2 + x.fcDT * 1e8 +
+        x.fcHDHR * 2 + x.fcHR * 1e4 +
+        x.fcHD * 2 + x.fcNM -
+        x.min_misses,
+];
+
+function stringifyObject(obj: { [key: string]: string; }): string {
+    return Object.keys(obj)
+        .map(k => k + '=' + encodeURIComponent(obj[k]))
+        .join('&');
+}
+
+function parseObject(str: string) {
+    const res = {};
+    str.split('&').forEach(part => {
+        const match = part.match(/(\w+)=(.+)/);
+        if (match)
+            (res as any)[match[1]] = decodeURIComponent(match[2]);
+    });
+    return res;
+}
 
 function drawTableForCurrentFiltering() {
     const filter_approved_status = parseInt($('*[name="filter_approved_status"]').val() as string);
-    const filter_mode = $('*[name="filter_mode"]').val() as string;
+    const filter_mode = parseInt($('*[name="filter_mode"]').val() as string);
     const filter_search_query = new SearchQuery(($('*[name="filter_search_query"]').val() as string));
     const filter_fc_level = parseInt($('*[name="filter_fc_level"]').val() as string);
-    const filter_expression = $('*[name="filter_expression"]').val() as string;
 
     const get_fc_level = (row: SummaryRow) => {
         if (row.min_misses !== 0) return 1;
@@ -137,7 +167,26 @@ function drawTableForCurrentFiltering() {
         return 7;
     };
 
-    const indices = currentOrderingIndices.filter(index => {
+    currentHashLink = '#';
+    const obj = {} as { [key: string]: string; };
+    if (filter_approved_status !== 1)
+        obj.s = filter_approved_status.toString();
+    if (filter_mode !== 1)
+        obj.m = filter_mode.toString();
+    if (filter_search_query.normalized_source !== '')
+        obj.q = filter_search_query.normalized_source;
+    if (filter_fc_level !== 0)
+        obj.l = filter_fc_level.toString();
+    if (currentSortOrder.length !== 0)
+        obj.o = currentSortOrder.join('.');
+
+    currentHashLink += stringifyObject(obj);
+    if (currentHashLink === '#')
+        history.replaceState({}, document.title, location.pathname);
+    else
+        location.hash = currentHashLink;
+
+    const indices = summaryRows.map((_, index) => index).filter(index => {
         const row = summaryRows[index];
 
         if (filter_approved_status === 1 &&
@@ -146,9 +195,9 @@ function drawTableForCurrentFiltering() {
         if (filter_approved_status === 2 && row.approved_status !== 4)
             return false;
 
-        if (filter_mode === '1' && row.mode !== 0)
+        if (filter_mode === 1 && row.mode !== 0)
             return false;
-        if (filter_mode === '2' && row.mode !== 2)
+        if (filter_mode === 2 && row.mode !== 2)
             return false;
 
         if (!filter_search_query.check(row))
@@ -159,10 +208,80 @@ function drawTableForCurrentFiltering() {
 
         return true;
     });
+
+    for (const ord of currentSortOrder) {
+        if (ord === 0) continue;
+        const prevIndex = Array(indices.length);
+        indices.forEach((x, i) => prevIndex[x] = i);
+        const sortKey = sortKeys[Math.abs(ord) - 1];
+        const sign = ord > 0 ? 1 : -1;
+        indices.sort((x, y) => {
+            const kx = sortKey(summaryRows[x]);
+            const ky = sortKey(summaryRows[y]);
+            return kx < ky ? -sign : kx > ky ? sign : prevIndex[y] - prevIndex[x];
+        });
+    }
+
+    $('#hash-link-to-the-current-table').attr('href', currentHashLink);
+
     drawTable(indices);
 }
 
+function simplySortOrder(order: number[]): number[] {
+    const res = [];
+    const seen = Array(sortKeys.length);
+    for (let i = order.length - 1; i >= 0; -- i) {
+        const x = order[i];
+        if (x === 0) continue;
+        const key = Math.abs(x) - 1, sign = x > 0 ? 1 : -1;
+        if (seen[key]) continue;
+        seen[key] = sign;
+        res.push(x);
+        if ([0, 1, 2, 3, 4, 5].indexOf(key) !== -1) // there is almost no ties
+            break;
+    }
+    if (res.length !== 0 && res[res.length - 1] === -3)
+        res.pop();
+    res.reverse();
+    return res;
+}
+
+function setQueryAccordingToHash() {
+    let obj: { [k: string]: string; };
+    try {
+        obj = parseObject(location.hash.substr(1));
+    } catch (e) {
+        obj = {};
+    }
+    if (typeof(obj.s) === 'undefined') obj.s = '1';
+    if (typeof(obj.m) === 'undefined') obj.m = '1';
+    if (typeof(obj.q) === 'undefined') obj.q = '';
+    if (typeof(obj.l) === 'undefined') obj.l = '0';
+    if (typeof(obj.o) === 'undefined') obj.o = '';
+    $('*[name="filter_approved_status"]').val(parseInt(obj.s));
+    $('*[name="filter_mode"]').val(parseInt(obj.m));
+    $('*[name="filter_search_query"]').val(obj.q);
+    $('*[name="filter_fc_level"]').val(parseInt(obj.l));
+    currentSortOrder = simplySortOrder(obj.o.split('.').map(x => parseInt(x) || 0));
+    setTableHeadSortingMark();
+}
+
+function setTableHeadSortingMark() {
+    $('.sorted').removeClass('sorted ascending descending');
+    const x = currentSortOrder.length === 0 ?
+        -3 : // stars desc
+        currentSortOrder[currentSortOrder.length - 1];
+    const index = Math.abs(x) - 1;
+    $($('#summary-table > thead > tr > th')[index])
+        .addClass('sorted').addClass(x > 0 ? 'ascending' : 'descending');
+}
+
 $(() => {
+    setQueryAccordingToHash();
+    window.addEventListener('hashchange', () => {
+        setQueryAccordingToHash();
+        drawTableForCurrentFiltering();
+    });
     const onChange = () => {
         drawTableForCurrentFiltering();
     };
@@ -172,22 +291,8 @@ $(() => {
         $(`input[name="${name}"]`).on('input', onChange);
 
     const thList = $('#summary-table > thead > tr > th');
-    [
-        (x: SummaryRow) => x.approved_date,
-        (x: SummaryRow) => x.display_string,
-        (x: SummaryRow) => x.stars,
-        (x: SummaryRow) => x.pp,
-        (x: SummaryRow) => x.hit_length,
-        (x: SummaryRow) => x.max_combo,
-        (x: SummaryRow) => x.approach_rate,
-        (x: SummaryRow) => x.circle_size,
-        (x: SummaryRow) =>
-            x.fcHDDT * 2 + x.fcDT * 1e8 +
-            x.fcHDHR * 2 + x.fcHR * 1e4 +
-            x.fcHD * 2 + x.fcNM -
-            x.min_misses,
-    ].forEach((sortKey: (x: SummaryRow) => number | string, index) => {
-        $.data(thList[index], 'sortKey', sortKey);
+    sortKeys.forEach((_, index) => {
+        $.data(thList[index], 'thIndex', index);
     });
     $.getJSON('data/summary.json').then((data: SummaryRowData[], _, xhr) => {
         const last_modified = new Date(xhr.getResponseHeader('Last-Modified') as string);
@@ -236,27 +341,20 @@ $(() => {
                     row.min_misses !== 0 ? (row.min_misses === 1 ? '1 miss' : row.min_misses + ' misses') :
                     [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', ')
             ].map(x => $('<td>').append(x)))[0] as HTMLTableRowElement);
-        currentOrderingIndices = summaryRows.map((_, index) => index);
         drawTableForCurrentFiltering();
         $('#summary-table-loader').removeClass('active');
     });
     thList.click((event) => {
         const th = $(event.target);
-        thList.filter('.sorted')
-            .filter((_, x) => x !== event.target)
-            .removeClass('sorted descending ascending');
+        let sign;
         if (th.hasClass('sorted'))
-            th.toggleClass('descending ascending');
+            sign = th.hasClass('descending') ? 1 : -1;
         else
-            th.addClass('sorted')
-                .addClass(th.hasClass('desc-first') ? 'descending' : 'ascending');
-        const sortKey = th.data('sortKey') as (x: SummaryRow) => any;
-        const sign = th.hasClass('descending') ? -1 : 1;
-        currentOrderingIndices.sort((x, y) => {
-            const kx = sortKey(summaryRows[x]);
-            const ky = sortKey(summaryRows[y]);
-            return (kx < ky ? -1 : kx > ky ? 1 : 0) * sign;
-        });
+            sign = th.hasClass('desc-first') ? -1 : 1;
+        const thIndex = th.data('thIndex') as number;
+        currentSortOrder.push((thIndex + 1) * sign);
+        currentSortOrder = simplySortOrder(currentSortOrder);
+        setTableHeadSortingMark();
         drawTableForCurrentFiltering();
     });
 });
