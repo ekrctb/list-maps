@@ -18,7 +18,7 @@
         <div class="fields">
           <div class="field">
             <label>Ranked status</label>
-            <select class="ui dropdown" name="filter_approved_status">
+            <select class="ui dropdown" id="filter-approved-status">
               <option value="1" selected>Ranked & Approved</option>
               <option value="2">Loved</option>
               <option value="3">Both</option>
@@ -26,7 +26,7 @@
           </div>
           <div class="field">
             <label>Mode</label>
-            <select class="ui dropdown" name="filter_mode">
+            <select class="ui dropdown" id="filter-mode">
               <option value="1" selected>Converted</option>
               <option value="2">Specific</option>
               <option value="3">Both</option>
@@ -34,12 +34,12 @@
           </div>
           <div class="field six wide">
             <label>Search query</label>
-            <input type="text" name="filter_search_query"
+            <input type="text" id="filter-search-query"
                    placeholder="queries like ar=9 are supported">
           </div>
           <div class="field">
             <label>FC level</label>
-            <select class="ui dropdown" name="filter_fc_level">
+            <select class="ui dropdown" id="filter-fc-level">
               <option value="0" selected>No filtering</option>
               <option value="1">No FCs</option>
               <option value="2">Only EZ FCs</option>
@@ -56,7 +56,9 @@
       <div class="four wide column">
         <p>
           Latest update: <span id="last-update-time"></span><br>
-          <a href="#">Reset all filters</a><br>
+          <a href="#">Reset to default</a> / <span id="num-results">0 maps</span><br>
+          <label for="show-full-result">Show full result</label>
+          <input type="checkbox" id="show-full-result">
         </p>
       </div>
       <div class="three wide column">

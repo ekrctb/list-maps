@@ -65,6 +65,7 @@ let summaryRows: SummaryRow[] = [];
 let unsortedTableRows: HTMLTableRowElement[] = [];
 let currentSortOrder: number[] = [];
 let currentHashLink = '#';
+let truncate
 
 let previousIndices = '';
 function drawTable(indices: number[]) {
@@ -72,7 +73,7 @@ function drawTable(indices: number[]) {
     if (previousIndices === str) return;
     previousIndices = str;
     $('#summary-table > tbody')
-        .html('')
+        .empty()
         .append(indices.map(index => unsortedTableRows[index]));
 }
 
@@ -151,10 +152,11 @@ function parseObject(str: string) {
 }
 
 function drawTableForCurrentFiltering() {
-    const filter_approved_status = parseInt($('*[name="filter_approved_status"]').val() as string);
-    const filter_mode = parseInt($('*[name="filter_mode"]').val() as string);
-    const filter_search_query = new SearchQuery(($('*[name="filter_search_query"]').val() as string));
-    const filter_fc_level = parseInt($('*[name="filter_fc_level"]').val() as string);
+    const filter_approved_status = parseInt($('#filter-approved-status').val() as string);
+    const filter_mode = parseInt($('#filter-mode').val() as string);
+    const filter_search_query = new SearchQuery(($('#filter-search-query').val() as string));
+    const filter_fc_level = parseInt($('#filter-fc-level').val() as string);
+    const show_full_result = $('#show-full-result').prop('checked');
 
     const get_fc_level = (row: SummaryRow) => {
         if (row.min_misses !== 0) return 1;
@@ -179,6 +181,8 @@ function drawTableForCurrentFiltering() {
         obj.l = filter_fc_level.toString();
     if (currentSortOrder.length !== 0)
         obj.o = currentSortOrder.join('.');
+    if (show_full_result)
+        obj.f = '1';
 
     currentHashLink += stringifyObject(obj);
     if (currentHashLink === '#')
@@ -222,6 +226,11 @@ function drawTableForCurrentFiltering() {
         });
     }
 
+    $('#num-results').text(indices.length === 1 ? '1 map' : indices.length.toString() + ' maps');
+    const truncate_num = show_full_result ? Infinity : 100;
+    if (indices.length > truncate_num)
+        indices.length = truncate_num;
+
     $('#hash-link-to-the-current-table').attr('href', currentHashLink);
 
     drawTable(indices);
@@ -258,10 +267,12 @@ function setQueryAccordingToHash() {
     if (typeof(obj.q) === 'undefined') obj.q = '';
     if (typeof(obj.l) === 'undefined') obj.l = '0';
     if (typeof(obj.o) === 'undefined') obj.o = '';
-    $('*[name="filter_approved_status"]').val(parseInt(obj.s));
-    $('*[name="filter_mode"]').val(parseInt(obj.m));
-    $('*[name="filter_search_query"]').val(obj.q);
-    $('*[name="filter_fc_level"]').val(parseInt(obj.l));
+    if (typeof(obj.f) === 'undefined') obj.f = '0';
+    $('#filter-approved-status').val(parseInt(obj.s));
+    $('#filter-mode').val(parseInt(obj.m));
+    $('#filter-search-query').val(obj.q);
+    $('#filter-fc-level').val(parseInt(obj.l));
+    $('#show-full-result').prop('checked', !!parseInt(obj.f));
     currentSortOrder = simplySortOrder(obj.o.split('.').map(x => parseInt(x) || 0));
     setTableHeadSortingMark();
 }
@@ -285,10 +296,10 @@ $(() => {
     const onChange = () => {
         drawTableForCurrentFiltering();
     };
-    for (const name of ['filter_approved_status', 'filter_mode', 'filter_fc_level'])
-        $(`select[name="${name}"]`).on('change', onChange);
-    for (const name of ['filter_search_query'])
-        $(`input[name="${name}"]`).on('input', onChange);
+    for (const id of ['filter-approved-status', 'filter-mode', 'filter-fc-level', 'show-full-result'])
+        $(`#${id}`).on('change', onChange);
+    for (const id of ['filter-search-query'])
+        $(`#${id}`).on('input', onChange);
 
     const thList = $('#summary-table > thead > tr > th');
     sortKeys.forEach((_, index) => {
