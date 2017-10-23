@@ -4,8 +4,7 @@
         "module": "none",
 
          "types": [
-            "node",
-            "text-encoding"
+            "node"
          ],
          "inlineSourceMap": true,
          "inlineSources": true,
