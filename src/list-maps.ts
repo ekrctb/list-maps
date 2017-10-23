@@ -297,8 +297,9 @@ $(() => {
     $.getJSON('data/summary.json').then((data: SummaryRowData[], _, xhr) => {
         const last_modified = new Date(xhr.getResponseHeader('Last-Modified') as string);
         $('#last-update-time')
-            .attr('datetime', last_modified.toISOString())
-            .text(last_modified.toISOString().split('T')[0]);
+            .append($('<time>')
+                .attr('datetime', last_modified.toISOString())
+                .text(last_modified.toISOString().split('T')[0]));
         const pad = (x: number) => (x < 10 ? '0' : '') + x;
         const mode_icons = [
             'exchange icon',
