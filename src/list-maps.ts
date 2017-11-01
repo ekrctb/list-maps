@@ -286,6 +286,50 @@ function setTableHeadSortingMark() {
         .addClass('sorted').addClass(x > 0 ? 'ascending' : 'descending');
 }
 
+function initUnsortedTableRows() {
+    const pad = (x: number) => (x < 10 ? '0' : '') + x;
+    const mode_icons = [
+        'exchange icon',
+        '',
+        'theme icon',
+        '',
+    ];
+    const approved_status_icons = [
+        'help icon',
+        'angle double up icon',
+        'fire icon',
+        'checkmark icon',
+        'empty heart icon',
+    ];
+    unsortedTableRows = summaryRows.map(row =>
+        $('<tr>').append([
+            [
+                $('<i>').addClass(approved_status_icons[row.approved_status]),
+                document.createTextNode(row.approved_date.split(' ')[0])
+            ],
+            [
+                $('<i>').addClass(mode_icons[row.mode]),
+                $('<a>')
+                    .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
+                    .text(row.display_string),
+                $('<div style="float:right">').append([
+                    $('<a><i class="image icon">')
+                        .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
+                    $('<a><i class="download icon">')
+                        .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`)
+                ])
+            ],
+            row.stars.toFixed(2),
+            row.pp.toFixed(0),
+            `${Math.floor(row.hit_length / 60)}:${pad(Math.floor(row.hit_length % 60))}`,
+            row.max_combo.toString(),
+            row.approach_rate.toFixed(1),
+            row.circle_size.toFixed(1),
+                row.min_misses !== 0 ? (row.min_misses === 1 ? '1 miss' : row.min_misses + ' misses') :
+                [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', ')
+        ].map(x => $('<td>').append(x)))[0] as HTMLTableRowElement);
+}
+
 $(() => {
     setQueryAccordingToHash();
     window.addEventListener('hashchange', () => {
@@ -304,56 +348,18 @@ $(() => {
     sortKeys.forEach((_, index) => {
         $.data(thList[index], 'thIndex', index);
     });
-    $.getJSON('data/summary.json').then((data: SummaryRowData[], _, xhr) => {
-        const last_modified = new Date(xhr.getResponseHeader('Last-Modified') as string);
+    const loadData = (data: SummaryRowData[], lastModified: Date) => {
         $('#last-update-time')
             .append($('<time>')
-                .attr('datetime', last_modified.toISOString())
-                .text(last_modified.toISOString().split('T')[0]));
-        const pad = (x: number) => (x < 10 ? '0' : '') + x;
-        const mode_icons = [
-            'exchange icon',
-            '',
-            'theme icon',
-            '',
-        ];
-        const approved_status_icons = [
-            'help icon',
-            'angle double up icon',
-            'fire icon',
-            'checkmark icon',
-            'empty heart icon',
-        ];
+                .attr('datetime', lastModified.toISOString())
+                .text(lastModified.toISOString().split('T')[0]));
         summaryRows = data.map(x => new SummaryRow(x));
-        unsortedTableRows = summaryRows.map(row =>
-            $('<tr>').append([
-                [
-                    $('<i>').addClass(approved_status_icons[row.approved_status]),
-                    document.createTextNode(row.approved_date.split(' ')[0])
-                ],
-                [
-                    $('<i>').addClass(mode_icons[row.mode]),
-                    $('<a>')
-                        .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
-                        .text(row.display_string),
-                    $('<div style="float:right">').append([
-                        $('<a><i class="image icon">')
-                            .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
-                        $('<a><i class="download icon">')
-                            .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`)
-                    ])
-                ],
-                row.stars.toFixed(2),
-                row.pp.toFixed(0),
-                `${Math.floor(row.hit_length / 60)}:${pad(Math.floor(row.hit_length % 60))}`,
-                row.max_combo.toString(),
-                row.approach_rate.toFixed(1),
-                row.circle_size.toFixed(1),
-                    row.min_misses !== 0 ? (row.min_misses === 1 ? '1 miss' : row.min_misses + ' misses') :
-                    [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', ')
-            ].map(x => $('<td>').append(x)))[0] as HTMLTableRowElement);
+        initUnsortedTableRows();
         drawTableForCurrentFiltering();
-        $('#summary-table-loader').removeClass('active');
+        $('#summary-table-loader').hide();
+    };
+    $.getJSON('data/summary.json').then((data, _, xhr) => {
+        loadData(data, new Date(xhr.getResponseHeader('Last-Modified') as string));
     });
     thList.click((event) => {
         const th = $(event.target);
