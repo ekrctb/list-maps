@@ -8,70 +8,87 @@
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
   <link href="https://fonts.googleapis.com/css?family=Lato:400,700" rel="stylesheet">
   <link href="index.css" rel="stylesheet">
-  <script
-    src="https://code.jquery.com/jquery-3.2.1.min.js"
-    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-    crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>  
   <script src="dist/list-maps.js"></script>
+  <style>
+  </style>
 </head>
 <body>
-  <div class="header">
-    <div class="row">
-      <div class="col field">
-        <label for="filter-approved-status">Ranked status</label>
-        <select class="form-control" id="filter-approved-status">
-          <option value="1" selected>Ranked & Approved</option>
-          <option value="2">Loved</option>
-          <option value="3">Both</option>
-        </select>
+  <div class="header container-fluid">
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a class="nav-link active" data-toggle="tab" href="#filters">Filters</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="tab" href="#about">About</a>
+      </li>
+    </ul>
+    <div class="tab-content">
+      <div class="tab-pane active" id="filters">
+        <div class="row">
+          <div class="col field">
+            <label for="filter-approved-status">Ranked status</label>
+            <select class="form-control" id="filter-approved-status">
+              <option value="1" selected>Ranked & Approved</option>
+              <option value="2">Loved</option>
+              <option value="3">Both</option>
+            </select>
+          </div>
+          <div class="col field">
+            <label for="filter-mode">Mode</label>
+            <select class="form-control" id="filter-mode">
+              <option value="1" selected>Converted</option>
+              <option value="2">Specific</option>
+              <option value="3">Both</option>
+            </select>
+          </div>
+          <div class="col field">
+            <label for="filter-search-query">Search query</label>
+            <input type="text" class="form-control" id="filter-search-query"
+                    placeholder="queries like ar=9 are supported">
+          </div>
+          <div class="col field">
+            <label for="filter-fc-level">FC level</label>
+            <select class="form-control" id="filter-fc-level">
+              <option value="0" selected>No filtering</option>
+              <option value="1">No FCs</option>
+              <option value="2">Only EZ FCs</option>
+              <option value="3">Only HR FCs</option>
+              <option value="4">HD FC for #1</option>
+              <option value="5">HR FC for #1</option>
+              <option value="6">HDHR FC for #1</option>
+              <option value="7">HDHR FCs</option>
+              <option value="8">DT FCs</option>
+            </select>
+          </div>
+          <div class="col">
+            <p>
+              Latest update: <span id="last-update-time"></span><br>
+              <a href="#">Reset filters</a> / <span id="num-results">0 maps</span><br>
+              <label for="show-full-result">Show full result</label>
+              <input type="checkbox" id="show-full-result">
+            </p>
+          </div>
+        </div>
       </div>
-      <div class="col field">
-        <label for="filter-mode">Mode</label>
-        <select class="form-control" id="filter-mode">
-          <option value="1" selected>Converted</option>
-          <option value="2">Specific</option>
-          <option value="3">Both</option>
-        </select>
-      </div>
-      <div class="col field">
-        <label for="filter-search-query">Search query</label>
-        <input type="text" class="form-control" id="filter-search-query"
-                placeholder="queries like ar=9 are supported">
-      </div>
-      <div class="col field">
-        <label for="filter-fc-level">FC level</label>
-        <select class="form-control" id="filter-fc-level">
-          <option value="0" selected>No filtering</option>
-          <option value="1">No FCs</option>
-          <option value="2">Only EZ FCs</option>
-          <option value="3">Only HR FCs</option>
-          <option value="4">HD FC for #1</option>
-          <option value="5">HR FC for #1</option>
-          <option value="6">HDHR FC for #1</option>
-          <option value="7">HDHR FCs</option>
-          <option value="8">DT FCs</option>
-        </select>
-      </div>
-      <div class="col">
-        <p>
-          Latest update: <span id="last-update-time"></span><br>
-          <a href="#">Reset filters</a> / <span id="num-results">0 maps</span><br>
-          <label for="show-full-result">Show full result</label>
-          <input type="checkbox" id="show-full-result">
-        </p>
-      </div>
-      <div class="col">
-        <p>
-          <a href="https://github.com/ekrctb/list-maps">github repository</a><br>
-          <a href="https://osu.ppy.sh/forum/t/630917">Forum post</a><br>
-          <a href="https://osu.ppy.sh/u/4497706">Creator's osu! profile</a>
-        </p>
+      <div class="tab-pane" id="about">
+        <div class="row">
+          <div class="col">
+            <ul>
+              <li><i class="fa fa-github" aria-hidden="true"></i><a href="https://github.com/ekrctb/list-maps">GitHub repository</a></li>
+              <li><i class="fa fa-pencil" aria-hidden="true"></i><a href="https://osu.ppy.sh/forum/t/630917">Forum post</a></li>
+              <li><i class="fa fa-user" aria-hidden="true"></i><a href="https://osu.ppy.sh/u/4497706">Creator's osu! profile</a></li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   </div>
   <div class="main">
     <i class="loader fa fa-spinner fa-pulse fa-3x" id="summary-table-loader"></i>
-    <table id="summary-table" class="table table-sm table-hover table-bordered table-sortable">
+    <table id="summary-table" class="table table-sm table-hover table-bordered table-striped">
       <thead><tr>
         <th class="desc-first">Date</th>
         <th>Map</th>
@@ -84,20 +101,20 @@
         <th class="desc-first">Misses / Number of FCs</th>
       </tr></thead>
       <tbody>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-          <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
-        </tbody>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+        <tr><td><i class="fa fa-angle-double-right"></i>2016-10-10</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1083470?m=2">Inferi - The Promethean Kings [The Merciless]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/480651.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/480651n"><i class="fa fa-download"></i></a></div></td><td>8.05</td><td>1029</td><td>5:50</td><td>3583</td><td>10.0</td><td>4.0</td><td>17 misses</td></tr><tr><td><i class="fa fa-angle-double-right"></i>2017-08-15</td><td><i class="fa fa-exchange"></i><a href="https://osu.ppy.sh/b/1314987?m=2">Camellia - Feelin Sky (Camellia's "200step" Self-remix) [Ambivalence]</a><div style="float:right"><a href="https://b.ppy.sh/thumb/623927.jpg"><i class="fa fa-image"></i></a><a href="https://osu.ppy.sh/d/623927n"><i class="fa fa-download"></i></a></div></td><td>7.78</td><td>906</td><td>6:00</td><td>3117</td><td>9.6</td><td>4.0</td><td>40 misses</td></tr>
+      </tbody>
     </table>
   </div>
 </body>

@@ -7,6 +7,8 @@ html {
 }
 
 body {
+    width: 100vw;
+    height: 100vh;
     display: flex;
     flex-flow: column;
     font-family: Lato, Arial, sans-serif;
@@ -14,7 +16,15 @@ body {
 
 .header {
     flex-shrink: 0;
-    padding: 15px 15px 0 15px;
+    padding: 0;
+}
+
+.header > .nav {
+    padding: 0px 15px 0 15px;
+}
+
+.header > .tab-content {
+    padding: 5px 15px 0 15px;
 }
 
 .main {
@@ -29,6 +39,14 @@ body {
 }
 
 table {
+}
+
+.table-bordered td, .table-bordered th {
+    border: 1px solid #e9ecef;
+}
+
+.table-bordered thead th {
+    border-bottom-width: 1px;
 }
 
 .table-sortable th {
