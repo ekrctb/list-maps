@@ -2,9 +2,7 @@
   "name": "list-maps",
   "version": "1.0.0",
   "description": "",
-  "dependencies": {
-    "semantic-ui": "^2.2.13"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/jquery": "^3.2.15",
     "@types/node": "^8.0.46",
