@@ -289,17 +289,17 @@ function setTableHeadSortingMark() {
 function initUnsortedTableRows() {
     const pad = (x: number) => (x < 10 ? '0' : '') + x;
     const mode_icons = [
-        'exchange icon',
+        'fa fa-exchange',
         '',
-        'theme icon',
+        'fa fa-tint',
         '',
     ];
     const approved_status_icons = [
-        'help icon',
-        'angle double up icon',
-        'fire icon',
-        'checkmark icon',
-        'empty heart icon',
+        'fa fa-question',
+        'fa fa-angle-double-right',
+        'fa fa-fire',
+        'fa fa-check',
+        'fa fa-heart-o',
     ];
     unsortedTableRows = summaryRows.map(row =>
         $('<tr>').append([
@@ -313,9 +313,9 @@ function initUnsortedTableRows() {
                     .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
                     .text(row.display_string),
                 $('<div style="float:right">').append([
-                    $('<a><i class="image icon">')
+                    $('<a><i class="fa fa-picture-o">')
                         .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
-                    $('<a><i class="download icon">')
+                    $('<a><i class="fa fa-download">')
                         .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`)
                 ])
             ],

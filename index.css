@@ -1,0 +1,71 @@
+a:visited {
+    color: #0056b3 !important;
+}
+
+html {
+    font-size: 14px;
+}
+
+body {
+    display: flex;
+    flex-flow: column;
+    font-family: Lato, Arial, sans-serif;
+}
+
+.header {
+    flex-shrink: 0;
+    padding: 15px 15px 0 15px;
+}
+
+.main {
+    padding: 0;
+    overflow-y: auto;
+}
+
+.field > label {
+    margin-left: .28571429rem;
+    font-size: .92857143em;
+    font-weight: 700;
+}
+
+table {
+}
+
+.table-sortable th {
+    background-color: #f9fafb;
+    padding: .5em .6em;
+}
+
+.table-sortable th {
+    cursor: pointer;
+}
+
+.table-sortable th.sorted, .table-sortable th:hover {
+    background-color: rgba(0,0,0,.05);
+}
+
+.table-sortable th::after {
+    font-family: FontAwesome;
+    opacity: .8;
+    margin: 0 0 0 .5em;
+}
+
+.table-sortable th.descending::after {
+    content: '\f0d7';
+}
+
+.table-sortable th.ascending::after {
+    content: '\f0d8';
+}
+
+.fa {
+    margin: 0 .25rem 0 0;
+    width: 1.18em;
+    text-align: center;
+}
+
+.loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+}
