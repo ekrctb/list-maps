@@ -197,7 +197,7 @@ function drawTableForCurrentFiltering() {
     const obj = {} as { [key: string]: string; };
     if (filter_approved_status !== 1)
         obj.s = filter_approved_status.toString();
-    if (filter_mode !== 1)
+    if (filter_mode !== 3)
         obj.m = filter_mode.toString();
     if (filter_search_query.normalized_source !== '')
         obj.q = filter_search_query.normalized_source;
@@ -297,7 +297,7 @@ function setQueryAccordingToHash() {
         obj = {};
     }
     if (obj.s === undefined) obj.s = '1';
-    if (obj.m === undefined) obj.m = '1';
+    if (obj.m === undefined) obj.m = '3';
     if (obj.q === undefined) obj.q = '';
     if (obj.l === undefined) obj.l = '0';
     if (obj.o === undefined) obj.o = '';
