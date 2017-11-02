@@ -87,7 +87,7 @@ class SearchQuery {
     public readonly normalized_source: string;
     constructor(public readonly source: string) {
         const key_to_property_name = {
-            'status': '"upraql"[row.approved_status+1]',
+            'status': '"pppraql"[row.approved_status+2]',
             'mode': '"otcm"[row.mode]',
             'stars': 'row.stars',
             'pp': 'row.pp',
@@ -362,6 +362,8 @@ function initUnsortedTableRows() {
     ];
     const approved_status_icons = [
         'fa fa-question',
+        'fa fa-question',
+        'fa fa-question',
         'fa fa-angle-double-right',
         'fa fa-fire',
         'fa fa-check',
@@ -370,7 +372,7 @@ function initUnsortedTableRows() {
     unsortedTableRows = summaryRows.map(row =>
         $('<tr>').append([
             [
-                $('<i>').addClass(approved_status_icons[row.approved_status]),
+                $('<i>').addClass(approved_status_icons[row.approved_status + 2]),
                 document.createTextNode(row.approved_date.split(' ')[0])
             ],
             [
@@ -385,7 +387,7 @@ function initUnsortedTableRows() {
                         .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`),
                     $('<a><i class="fa fa-cloud-download">')
                         .attr('href', `osu://dl/${row.beatmapset_id}`)
-                ]) : []
+                ]) : $()
             ],
             row.stars.toFixed(2),
             row.pp.toFixed(0),
@@ -394,8 +396,8 @@ function initUnsortedTableRows() {
             row.approach_rate.toFixed(1),
             row.circle_size.toFixed(1),
             row.min_misses !== 0 ? (row.min_misses === 1 ? '1 miss' : row.min_misses + ' misses') :
-                [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', '),
-            beatmapInfoMap.size === 0 ? [] :
+            [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', '),
+        beatmapInfoMap.size === 0 ? [] :
             [
                 $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),
                 $('<span>').addClass('rank-' + rankAchievedClass[!row.info ? 9 : row.info.rankAchieved]),

@@ -20,6 +20,43 @@ def map_display_format(beatmap):
     return '{artist} - {title} [{version}]'.format(**beatmap)
 
 
+def get_mod_names(mods: int):
+    mod_names = []
+    if (mods & 1) != 0:
+        mod_names.append('NF')
+    if (mods & 2) != 0:
+        mod_names.append('EZ')
+    if (mods & 8) != 0:
+        mod_names.append('HD')
+    if (mods & 16) != 0:
+        mod_names.append('HR')
+    if (mods & 32) != 0:
+        mod_names.append((mods & 16384 != 0) and 'PF' or 'SD')
+    if (mods & 64) != 0:
+        mod_names.append((mods & 512 != 0) and 'NC' or 'DT')
+    if (mods & 256) != 0:
+        mod_names.append('HT')
+    if (mods & 1024) != 0:
+        mod_names.append('FL')
+    return mod_names
+
+
+def score_display_format(
+        beatmap: osuapi.Beatmap, score: osuapi.Score, map_rank: int):
+    mod_names = get_mod_names(int(score['enabled_mods']))
+    accuracy = calc_acc(score)
+    return ("{user} | {map_display}{mods} {accuracy:.2f}% {combo_or_fc}" +
+            " {pp:.0f}pp #{map_rank}").format(
+                user=score['username'],
+                map_display=map_display_format(beatmap),
+                mods=not mod_names and '' or ' +' + ''.join(mod_names),
+                accuracy=accuracy,
+                combo_or_fc=score['perfect'] != '0' and 'FC' or
+                score['maxcombo'] + '/' + beatmap['max_combo'] + 'x' +
+                score['countmiss'] + 'm',
+                pp=float(score['pp'] or '0'),
+                map_rank=map_rank)
+
 GET_BEATMAPS_LIMIT = 500
 
 
@@ -69,7 +106,7 @@ def calc_pp(stars, approach_rate, max_combo, combo, acc, miss):
         length_bonus += math.log10(max_combo / 3000.0) * 0.5
     final *= length_bonus
     final *= pow(0.97, miss)
-    final *= pow(combo / max_combo, 0.8)
+    final *= pow(combo / max_combo, 0.8) if max_combo > 0 else 1
     if approach_rate > 9:
         final *= 1 + 0.1 * (approach_rate - 9.0)
     if approach_rate < 8:
@@ -88,7 +125,7 @@ def calc_pp(stars, approach_rate, max_combo, combo, acc, miss):
 def calc_pp_for_map(beatmap: osuapi.Beatmap):
     stars = float(beatmap['difficultyrating'])
     approach_rate = float(beatmap['diff_approach'])
-    max_combo = int(beatmap['max_combo'])
+    max_combo = int(beatmap['max_combo'] or '0')
     return calc_pp(stars, approach_rate, max_combo, max_combo, 100, 0)['NM']
 
 
@@ -107,8 +144,11 @@ MOD_NAME = {
     16: 'HR',
     64: 'DT',
     8 | 16: 'HDHR',
-    8 | 64: 'HDDT'
+    8 | 64: 'HDDT',
+    16 | 64: 'HRDT',
+    8 | 16 | 64: 'HDHRDT'
 }
+ESSENTIAL_MODS_MASK = ~(1 | 32 | 512 | 16384)    # NF | SD | NC | PF
 
 
 @memory.cached(compress=True)
@@ -122,7 +162,7 @@ def summalize_beatmap(beatmap: osuapi.Beatmap,
     min_misses = 99999
     for score in scores:
         mods = int(score['enabled_mods'])
-        mods &= ~(1 | 32 | 512 | 16384)    # NF | SD | NC | PF
+        mods &= ESSENTIAL_MODS_MASK
         if (mods & 256) != 0:    # HalfTime
             continue
         min_misses = min(min_misses, int(score['countmiss']))
@@ -140,7 +180,7 @@ def summalize_beatmap(beatmap: osuapi.Beatmap,
         float(beatmap['difficultyrating']),
         float(calc_pp_for_map(beatmap)),
         float(beatmap['hit_length']),
-        int(beatmap['max_combo']),
+        int(beatmap['max_combo'] or '0'),
         float(beatmap['diff_approach']),
         float(beatmap['diff_size']),
         min_misses,
@@ -156,8 +196,9 @@ def summalize_beatmap(beatmap: osuapi.Beatmap,
 def main():
     raw_list = get_all_beatmaps()
     filtered = [beatmap for beatmap in raw_list
-                if float(beatmap['difficultyrating']) >= 4.0 and
-                beatmap['approved'] in ['1', '2', '4']]
+                if (beatmap['approved'] in ['1', '2', '4']) and (
+                    float(beatmap['difficultyrating']) >=
+                    (beatmap['mode'] == '2' and 4.0 or 4.0))]
     filtered.sort(
         key=lambda beatmap: float(beatmap['difficultyrating']),
         reverse=True)
@@ -171,6 +212,27 @@ def main():
 
     with open('data/summary.json', 'w') as file:
         json.dump(summary, file, separators=[',', ':'])
+
+
+def list_ar11_scores(filtered: List[osuapi.Beatmap]):
+    for beatmap in filtered:
+        original_ar = float(beatmap['diff_approach'])
+        if original_ar * 1.4 < 10:
+            continue
+        scores = get_top_scores(beatmap['beatmap_id'])
+        for map_rank_zo, score in enumerate(scores):
+            mods = int(score['enabled_mods'])
+            if (mods & 1) != 0:     # NoFail
+                continue
+            if (mods & 2) != 0:     # Easy
+                continue
+            if (mods & 64) == 0:    # DoubleTime
+                continue
+            if original_ar * ((mods & 16) != 0 and 1.4 or 1) < 10:
+                continue
+            print('{:.2f}☆ {}\n'.format(
+                float(beatmap['difficultyrating']),
+                score_display_format(beatmap, score, map_rank_zo + 1)))
 
 
 if __name__ == '__main__':
