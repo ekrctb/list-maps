@@ -24,7 +24,8 @@ body {
 }
 
 .header > .tab-content {
-    padding: 5px 15px 0 15px;
+    padding: 5px 15px 10px 15px;
+    border-bottom: 1px solid #e9ecef;
 }
 
 .main {
@@ -47,6 +48,10 @@ table {
 
 .table-bordered thead th {
     border-bottom-width: 1px;
+}
+
+#summary-table, #summary-table th {
+    border-top-width: 0px;
 }
 
 .table-sortable th {
@@ -87,3 +92,37 @@ table {
     top: 50%;
     left: 50%;
 }
+
+.rank-SSH, .rank-SH, .rank-SS, .rank-S, .rank-A, .rank-B, .rank-C, .rank-D, .rank-F, .rank-- {
+    display: inline-block;
+    margin: 0 .25rem 0 0;
+    width: 1.18em;
+    line-height: 0;
+    font-size: 1.1428571428571428em;
+    font-weight: 900;
+    font-style: italic;
+    text-align: center;
+    text-shadow: black 2px 1px;
+}
+.rank-- {
+    font-weight: inherit;
+    font-style: normal;
+    text-shadow: none;
+}
+.rank-SSH:before, .rank-SS:before { content: 'SS'; }
+.rank-S:before, .rank-SH:before { content: 'S'; }
+.rank-A:before { content: 'A'; }
+.rank-B:before { content: 'B'; }
+.rank-C:before { content: 'C'; }
+.rank-D:before { content: 'D'; }
+.rank-F:before { content: 'F'; }
+.rank--:before { content: '-'; }
+.rank-SSH { color: silver; }
+.rank-SH { color: silver; }
+.rank-SS { color: gold; }
+.rank-S { color: gold; }
+.rank-A { color: limegreen; }
+.rank-B { color: blue; }
+.rank-C { color: purple; }
+.rank-D { color: darkred };
+.rank-F { color: black; }

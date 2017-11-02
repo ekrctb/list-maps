@@ -2,9 +2,17 @@
     "compilerOptions": {
         "target": "es5",
         "module": "none",
+        "lib": [
+            "dom",
+            "es6",
+            "scripthost"
+        ],
 
          "types": [
-            "node"
+            "node",
+            "jquery",
+            "pako",
+            "text-encoding"
          ],
          "inlineSourceMap": true,
          "inlineSources": true,
