@@ -16,7 +16,8 @@ type SummaryRowData =
 const MINIMUM_DATE = new Date(0);
 class SummaryRow {
     approved_status: number;
-    approved_date: string;
+    approved_date_string: string;
+    approved_date: Date;
     mode: number;
     beatmap_id: string;
     beatmap_id_number: number;
@@ -40,7 +41,7 @@ class SummaryRow {
     constructor(private readonly data: SummaryRowData) {
         [
             this.approved_status,
-            this.approved_date,
+            this.approved_date_string,
             this.mode,
             this.beatmap_id,
             this.beatmapset_id,
@@ -60,6 +61,7 @@ class SummaryRow {
             this.fcHDDT,
         ] = data;
         this.beatmap_id_number = parseInt(this.beatmap_id);
+        this.approved_date = new Date(this.approved_date_string.replace(' ', 'T') + '+08:00');
         this.display_string_lower = this.display_string.toLowerCase();
         this.info = null;
     }
@@ -97,6 +99,7 @@ class SearchQuery {
             'cs': 'row.circle_size',
             'played': `(!row.info?Infinity:(${new Date().valueOf()}-row.info.lastPlayed.valueOf())/${1e3 * 60 * 60 * 24})`,
             'unplayed': `(row.info&&row.info.lastPlayed.valueOf()!==${MINIMUM_DATE.valueOf()}?'y':'')`,
+            'date': `(${new Date().valueOf()}-row.approved_date.valueOf())/${1e3 * 60 * 60 * 24}`,
             'rank': `(${JSON.stringify(rankAchievedClass)}[!row.info?9:row.info.rankAchieved]).toLowerCase()`
         };
         const regexp = new RegExp(`(${
@@ -131,7 +134,7 @@ class SearchQuery {
 }
 
 const sortKeys = [
-    (x: SummaryRow) => x.approved_date,
+    (x: SummaryRow) => x.approved_date_string,
     (x: SummaryRow) => x.display_string,
     (x: SummaryRow) => x.stars,
     (x: SummaryRow) => x.pp,
@@ -373,7 +376,7 @@ function initUnsortedTableRows() {
         $('<tr>').append([
             [
                 $('<i>').addClass(approved_status_icons[row.approved_status + 2]),
-                document.createTextNode(row.approved_date.split(' ')[0])
+                document.createTextNode(row.approved_date_string.split(' ')[0])
             ],
             [
                 $('<i>').addClass(mode_icons[row.mode]),
