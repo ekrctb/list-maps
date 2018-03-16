@@ -67,7 +67,50 @@ class SummaryRow {
     }
 }
 
+type RankingRowData =
+[
+    number, number, number, string, string, string, string, string, string, number, string, string
+];
+class RankingRow {
+    rank: number;
+    stars: number;
+    pp: number;
+    user_id: string;
+    username: string;
+    username_lower: string;
+    beatmap_id: string;
+    beatmap_id_number: number;
+    beatmapset_id: string;
+    display_string: string;
+    display_string_lower: string;
+    mods: string;
+    accuracy: number;
+    combo_display: string;
+    date_played_string: string;
+    constructor(private readonly data: RankingRowData) {
+        [
+            this.rank,
+            this.stars,
+            this.pp,
+            this.user_id,
+            this.username,
+            this.beatmap_id,
+            this.beatmapset_id,
+            this.display_string,
+            this.mods,
+            this.accuracy,
+            this.combo_display,
+            this.date_played_string
+        ] = data;
+        this.beatmap_id_number = parseInt(this.beatmap_id);
+        this.username_lower = this.username.toLowerCase();
+        this.display_string_lower = this.display_string.toLowerCase();
+    }
+}
+
+
 let summaryRows: SummaryRow[] = [];
+let rankingRows: RankingRow[] = [];
 let unsortedTableRows: HTMLTableRowElement[] = [];
 let currentSortOrder: number[] = [];
 let currentHashLink = '#';
@@ -135,7 +178,7 @@ class SearchQuery {
 
 const sortKeys = [
     (x: SummaryRow) => x.approved_date_string,
-    (x: SummaryRow) => x.display_string,
+    (x: SummaryRow) => x.display_string_lower,
     (x: SummaryRow) => x.stars,
     (x: SummaryRow) => x.pp,
     (x: SummaryRow) => x.hit_length,
@@ -250,16 +293,16 @@ function drawTableForCurrentFiltering() {
         return true;
     });
 
+    const prevIndex = Array(summaryRows.length);
     for (const ord of currentSortOrder) {
         if (ord === 0) continue;
-        const prevIndex = Array(indices.length);
         indices.forEach((x, i) => prevIndex[x] = i);
         const sortKey = sortKeys[Math.abs(ord) - 1];
         const sign = ord > 0 ? 1 : -1;
         indices.sort((x, y) => {
             const kx = sortKey(summaryRows[x]);
             const ky = sortKey(summaryRows[y]);
-            return kx < ky ? -sign : kx > ky ? sign : prevIndex[y] - prevIndex[x];
+            return kx < ky ? -sign : kx > ky ? sign : prevIndex[x] - prevIndex[y];
         });
     }
 
@@ -273,7 +316,7 @@ function drawTableForCurrentFiltering() {
     drawTable(indices);
 }
 
-function simplySortOrder(order: number[]): number[] {
+function simplifySortOrder(order: number[], [noTies, defaultOrder]: [number[], number]): number[] {
     const res = [];
     const seen = Array(sortKeys.length);
     for (let i = order.length - 1; i >= 0; -- i) {
@@ -283,15 +326,17 @@ function simplySortOrder(order: number[]): number[] {
         if (seen[key]) continue;
         seen[key] = sign;
         res.push(x);
-        if ([0, 1, 2, 3, 4, 5, 9].indexOf(key) !== -1) // there is almost no ties
+        if (noTies.indexOf(key) !== -1) // there is almost no ties
             break;
     }
-    if (res.length !== 0 && res[res.length - 1] === -3)
+    if (res.length !== 0 && res[res.length - 1] === defaultOrder)
         res.pop();
     res.reverse();
     return res;
 }
 
+const summaryOrderConfig: [number[], number] = [[0, 1, 2, 3, 4, 5, 9], -3];
+const rankingOrderConfig: [number[], number] = [[0, 1, 7], 1];
 function setQueryAccordingToHash() {
     let obj: { [k: string]: string; };
     try {
@@ -312,7 +357,7 @@ function setQueryAccordingToHash() {
     $('#filter-fc-level').val(parseInt(obj.l));
     $('#filter-local-data').val(parseInt(obj.d));
     $('#show-full-result').prop('checked', !!parseInt(obj.f));
-    currentSortOrder = simplySortOrder(obj.o.split('.').map(x => parseInt(x) || 0));
+    currentSortOrder = simplifySortOrder(obj.o.split('.').map(x => parseInt(x) || 0), summaryOrderConfig);
     setTableHeadSortingMark();
 }
 
@@ -783,7 +828,27 @@ function loadOsuDB(buffer: ArrayBuffer, version: Date) {
     beatmapInfoMapVersion = version;
 }
 
-$(() => {
+function initTable(sortKeys: {}[], orderConfig: [number[], number], onSortOrderChanged: () => void) {
+    const thList = $('#summary-table > thead > tr > th');
+    sortKeys.forEach((_, index) => {
+        $.data(thList[index], 'thIndex', index);
+    });
+    thList.click((event) => {
+        const th = $(event.target);
+        let sign;
+        if (th.hasClass('sorted'))
+            sign = th.hasClass('descending') ? 1 : -1;
+        else
+            sign = th.hasClass('desc-first') ? -1 : 1;
+        const thIndex = th.data('thIndex') as number;
+        currentSortOrder.push((thIndex + 1) * sign);
+        currentSortOrder = simplifySortOrder(currentSortOrder, orderConfig);
+        setTableHeadSortingMark();
+        onSortOrderChanged();
+    });
+}
+
+function main() {
     Promise.all(
         (['osu!.db', 'scores.db'] as LocalFileName[])
             .map(name =>
@@ -792,7 +857,6 @@ $(() => {
         if (initUnsortedTableRows())
             drawTableForCurrentFiltering();
     });
-
     setQueryAccordingToHash();
     window.addEventListener('hashchange', () => {
         setQueryAccordingToHash();
@@ -805,11 +869,8 @@ $(() => {
         $(`#${id}`).on('change', onChange);
     for (const id of ['filter-search-query'])
         $(`#${id}`).on('input', onChange);
+    initTable(sortKeys, summaryOrderConfig, onChange);
 
-    const thList = $('#summary-table > thead > tr > th');
-    sortKeys.forEach((_, index) => {
-        $.data(thList[index], 'thIndex', index);
-    });
     const loadData = (data: SummaryRowData[], lastModified: Date) => {
         $('#last-update-time')
             .append($('<time>')
@@ -822,19 +883,6 @@ $(() => {
     };
     $.getJSON('data/summary.json').then((data, _, xhr) => {
         loadData(data, new Date(xhr.getResponseHeader('Last-Modified') as string));
-    });
-    thList.click((event) => {
-        const th = $(event.target);
-        let sign;
-        if (th.hasClass('sorted'))
-            sign = th.hasClass('descending') ? 1 : -1;
-        else
-            sign = th.hasClass('desc-first') ? -1 : 1;
-        const thIndex = th.data('thIndex') as number;
-        currentSortOrder.push((thIndex + 1) * sign);
-        currentSortOrder = simplySortOrder(currentSortOrder);
-        setTableHeadSortingMark();
-        drawTableForCurrentFiltering();
     });
     $('#db-file-input').change(async event => {
         const elem = event.target as HTMLInputElement;
@@ -855,6 +903,89 @@ $(() => {
         }
         elem.value = '';
     });
-});
+}
+
+function initUnsortedRankingTableRows() {
+    if (rankingRows.length === 0)
+        return false;
+
+    unsortedTableRows = rankingRows.map(row =>
+        $('<tr>').append([
+            row.rank.toString(),
+            row.pp.toFixed(2),
+            $('<a>').attr('href', `https://osu.ppy.sh/u/${row.user_id}`).text(row.username),
+            [
+                $('<a>')
+                    .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
+                    .text(row.display_string),
+                row.beatmap_id_number > 0 ? $('<div class="float-right">').append([
+                    $('<a><i class="fa fa-picture-o">')
+                        .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
+                    $('<a><i class="fa fa-download">')
+                        .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`),
+                    $('<a><i class="fa fa-cloud-download">')
+                        .attr('href', `osu://dl/${row.beatmapset_id}`)
+                ]) : $()
+            ],
+            row.mods,
+            row.accuracy.toFixed(2) + '%',
+            row.combo_display,
+            row.date_played_string,
+        ].map(x => $('<td>').append(x)))[0] as HTMLTableRowElement);
+
+    unsortedTableRowsChanged = true;
+    return true;
+}
+
+const rankingSortKeys = [
+    (x: RankingRow) => x.rank,
+    (x: RankingRow) => x.pp,
+    (x: RankingRow) => x.username_lower,
+    (x: RankingRow) => x.display_string_lower,
+    (x: RankingRow) => x.mods,
+    (x: RankingRow) => x.accuracy,
+    (x: RankingRow) => x.combo_display,
+    (x: RankingRow) => x.date_played_string,
+];
+
+function drawRankingTable() {
+    const indices = rankingRows.map((_row, i) => i);
+    const prevIndex = Array(rankingRows.length);
+    for (const ord of currentSortOrder) {
+        if (ord === 0) continue;
+        indices.forEach((x, i) => prevIndex[x] = i);
+        const sortKey = rankingSortKeys[Math.abs(ord) - 1];
+        const sign = ord > 0 ? 1 : -1;
+        indices.sort((x, y) => {
+            const kx = sortKey(rankingRows[x]);
+            const ky = sortKey(rankingRows[y]);
+            return kx < ky ? -sign : kx > ky ? sign : prevIndex[x] - prevIndex[y];
+        });
+    }
+    drawTable(indices);
+}
+
+function rankingMain() {
+    initTable(rankingSortKeys, rankingOrderConfig, drawRankingTable);
+    const loadData = (data: RankingRowData[], lastModified: Date) => {
+        $('#last-update-time')
+            .append($('<time>')
+                .attr('datetime', lastModified.toISOString())
+                .text(lastModified.toISOString().split('T')[0]));
+        rankingRows = data.map(x => new RankingRow(x));
+        initUnsortedRankingTableRows();
+        drawRankingTable();
+        $('#summary-table-loader').hide();
+    };
+    $.getJSON('data/ranking.json').then((data, _, xhr) => {
+        loadData(data, new Date(xhr.getResponseHeader('Last-Modified') as string));
+    });
+}
+
+if (/ranking\.html$/i.test(location.pathname)) {
+    $(rankingMain);
+} else {
+    $(main);
+}
 
 }

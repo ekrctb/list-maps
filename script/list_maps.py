@@ -28,16 +28,16 @@ def get_mod_names(mods: int):
         mod_names.append('EZ')
     if (mods & 8) != 0:
         mod_names.append('HD')
-    if (mods & 16) != 0:
-        mod_names.append('HR')
-    if (mods & 32) != 0:
-        mod_names.append((mods & 16384 != 0) and 'PF' or 'SD')
     if (mods & 64) != 0:
         mod_names.append((mods & 512 != 0) and 'NC' or 'DT')
     if (mods & 256) != 0:
         mod_names.append('HT')
+    if (mods & 16) != 0:
+        mod_names.append('HR')
     if (mods & 1024) != 0:
         mod_names.append('FL')
+    if (mods & 32) != 0:
+        mod_names.append((mods & 16384 != 0) and 'PF' or 'SD')
     return mod_names
 
 
@@ -212,7 +212,9 @@ def main():
         summary.append(row)
 
     with open('data/summary.json', 'w') as file:
-        json.dump(summary, file, separators=[',', ':'])
+        json.dump(summary, file, separators=(',', ':'))
+
+    output_pp_ranking(filtered)
 
 
 def list_ar11_scores(filtered: List[osuapi.Beatmap]):
@@ -236,7 +238,7 @@ def list_ar11_scores(filtered: List[osuapi.Beatmap]):
                 score_display_format(beatmap, score, map_rank_zo + 1)))
 
 
-def list_pp_ranking(filtered: List[osuapi.Beatmap]):
+def output_pp_ranking(filtered: List[osuapi.Beatmap]):
     threshold = 400
     ranking = []
     for beatmap in filtered:
@@ -249,14 +251,28 @@ def list_pp_ranking(filtered: List[osuapi.Beatmap]):
                 score['beatmap'] = beatmap
                 ranking.append(score)
     ranking.sort(key=lambda score: float(score['pp']), reverse=True)
+    summary = []
     for rank_zo, score in enumerate(ranking):
         beatmap = score['beatmap']
-        map_rank = score['map_rank']
-        print('#{} {:.2f}pp: {:.2f}☆ {}'.format(
+        mod_names = get_mod_names(int(score['enabled_mods']))
+        summary.append((
             rank_zo + 1,
-            float(score['pp'] or 'NaN'),
             float(beatmap['difficultyrating']),
-            score_display_format(beatmap, score, map_rank)))
+            float(score['pp'] or 'NaN'),
+            score['user_id'],
+            score['username'],
+            beatmap['beatmap_id'],
+            beatmap['beatmapset_id'],
+            map_display_format(beatmap),
+            ''.join(mod_names),
+            calc_acc(score),
+            score['perfect'] != '0' and 'FC' or
+            '{}/{}x {}m'.format(score['maxcombo'], beatmap['max_combo'],
+                                score['countmiss']),
+            score['date']
+        ))
+    with open('data/ranking.json', 'w') as file:
+        json.dump(summary, file, separators=(',', ':'))
 
 
 if __name__ == '__main__':
