@@ -206,6 +206,7 @@ def main():
     summary = []
     for beatmap in filtered:
         print(beatmap['difficultyrating'], map_display_format(beatmap))
+        # cached.remove_cache(get_top_scores)(beatmap['beatmap_id'])
         scores = get_top_scores(beatmap['beatmap_id'])
         row = summalize_beatmap(beatmap, scores)
         summary.append(row)
@@ -230,9 +231,32 @@ def list_ar11_scores(filtered: List[osuapi.Beatmap]):
                 continue
             if original_ar * ((mods & 16) != 0 and 1.4 or 1) < 10:
                 continue
-            print('{:.2f}☆ {}\n'.format(
+            print('{:.2f}☆ {}'.format(
                 float(beatmap['difficultyrating']),
                 score_display_format(beatmap, score, map_rank_zo + 1)))
+
+
+def list_pp_ranking(filtered: List[osuapi.Beatmap]):
+    threshold = 400
+    ranking = []
+    for beatmap in filtered:
+        if beatmap['mode'] != '0':
+            continue
+        scores = get_top_scores(beatmap['beatmap_id'])
+        for map_rank_zo, score in enumerate(scores):
+            if float(score['pp'] or 'NaN') >= threshold:
+                score['map_rank'] = map_rank_zo + 1
+                score['beatmap'] = beatmap
+                ranking.append(score)
+    ranking.sort(key=lambda score: float(score['pp']), reverse=True)
+    for rank_zo, score in enumerate(ranking):
+        beatmap = score['beatmap']
+        map_rank = score['map_rank']
+        print('#{} {:.2f}pp: {:.2f}☆ {}'.format(
+            rank_zo + 1,
+            float(score['pp'] or 'NaN'),
+            float(beatmap['difficultyrating']),
+            score_display_format(beatmap, score, map_rank)))
 
 
 if __name__ == '__main__':
