@@ -1,6 +1,4 @@
-script/API_SECRET
-script/__pycache__
-.mypy_cache/
 node_modules/
-semantic/
 package-lock.json
+target
+API_SECRET
