@@ -1,4 +1,7 @@
+// TODO: use synstructure
+
 #![feature(extern_crate_item_prelude)]
+#![allow(clippy::eval_order_dependence)]
 
 extern crate proc_macro;
 extern crate quote;
@@ -7,6 +10,7 @@ extern crate syn;
 use proc_macro::TokenStream as TS1;
 use quote::quote;
 use syn::parse::{Parse, ParseStream, Result};
+use syn::spanned::Spanned;
 use syn::*;
 
 #[allow(unused)]
@@ -22,9 +26,16 @@ struct Input {
 #[allow(unused)]
 struct InputField {
     attrs: Vec<Attribute>,
+    vis: Visibility,
     name: Ident,
     colon_token: Token![:],
     ty: Type,
+}
+
+#[allow(unused)]
+struct GetterAttrMeta {
+    paren_token: token::Paren,
+    getter_name: Ident,
 }
 
 impl Parse for Input {
@@ -45,9 +56,20 @@ impl Parse for InputField {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(InputField {
             attrs: Attribute::parse_outer(input)?,
+            vis: input.parse()?,
             name: input.parse()?,
             colon_token: input.parse()?,
             ty: input.parse()?,
+        })
+    }
+}
+
+impl Parse for GetterAttrMeta {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let content;
+        Ok(GetterAttrMeta {
+            paren_token: parenthesized!(content in input),
+            getter_name: content.parse()?,
         })
     }
 }
@@ -121,4 +143,35 @@ pub fn derive_api(input: TS1) -> TS1 {
         }
     };
     TS1::from(expanded)
+}
+
+#[proc_macro_derive(Getters, attributes(get_f64))]
+pub fn derive_getters(input: TS1) -> TS1 {
+    let input = parse_macro_input!(input as Input);
+    let mut getters = Vec::new();
+    for field in input.fields {
+        for attr in field.attrs {
+            let span = attr.tts.span();
+            if !attr.path.is_ident("get_f64") {
+                continue;
+            }
+            let meta: GetterAttrMeta = match parse2(attr.tts) {
+                Ok(x) => x,
+                Err(e) => return parse::Error::new(span, e).to_compile_error().into(),
+            };
+            let getter_name = meta.getter_name;
+            let name = field.name.clone();
+            getters.push(quote! {
+                pub fn #getter_name(&self) -> Result<f64, <f64 as FromStr>::Err> {
+                    f64::from_str(self.#name.as_ref())
+                }
+            });
+        }
+    }
+    let ident = input.ident;
+    TS1::from(quote! {
+        impl #ident {
+            #(#getters)*
+        }
+    })
 }

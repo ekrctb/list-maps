@@ -4,7 +4,9 @@ extern crate osu_api;
 extern crate reqwest;
 extern crate structopt;
 
+use chrono::prelude::*;
 use failure::{Fallible, ResultExt};
+use osu_api::*;
 use structopt::StructOpt;
 
 fn get_api_key() -> Fallible<String> {
@@ -27,8 +29,8 @@ impl GetMaps {
     fn run(&self) -> Fallible<()> {
         let api_key = get_api_key()?;
         let mut client = reqwest::Client::new();
-        let beatmaps = osu_api::GetBeatmaps::new(api_key)
-            .since("1000-01-01")
+        let beatmaps = GetBeatmaps::new(api_key)
+            .since(Utc.ymd(2000, 1, 1).and_hms(0, 0, 0))
             .limit(2)
             .request(&mut client)?;
         println!("{:?}", beatmaps);
