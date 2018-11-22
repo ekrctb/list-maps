@@ -1,3 +1,5 @@
+#![allow(clippy::unreadable_literal)]
+
 use chrono::prelude::*;
 use failure::Fallible;
 use num_enum::{CustomTryInto, IntoPrimitive};
@@ -222,7 +224,46 @@ pub struct Score<'a> {
     #[serde(borrow)]
     pub rank: Cow<'a, str>,
     #[serde(borrow)]
-    pub pp: Cow<'a, str>,
+    pub pp: Option<Cow<'a, str>>,
     #[serde(borrow)]
     pub replay_available: Cow<'a, str>,
+}
+
+bitflags::bitflags! {
+    pub struct Mods: u32 {
+        const NoFail         = 1;
+        const Easy           = 2;
+        const TouchDevice    = 4;
+        const Hidden         = 8;
+        const HardRock       = 16;
+        const SuddenDeath    = 32;
+        const DoubleTime     = 64;
+        const Relax          = 128;
+        const HalfTime       = 256;
+        const Nightcore      = 512;
+        const Flashlight     = 1024;
+        const Autoplay       = 2048;
+        const SpunOut        = 4096;
+        const Autopilot      = 8192;
+        const Perfect        = 16384;
+        const Key4           = 32768;
+        const Key5           = 65536;
+        const Key6           = 131072;
+        const Key7           = 262144;
+        const Key8           = 524288;
+        const FadeIn         = 1048576;
+        const Random         = 2097152;
+        const Cinema         = 4194304;
+        const Target         = 8388608;
+        const Key9           = 16777216;
+        const KeyCoop        = 33554432;
+        const Key1           = 67108864;
+        const Key3           = 134217728;
+        const Key2           = 268435456;
+        const ScoreV2        = 536870912;
+    }
+}
+
+pub fn mods_from_str(s: &str) -> Fallible<Mods> {
+    Mods::from_bits(u32::from_str(s)?).ok_or_else(|| failure::err_msg("Invalid Mods value"))
 }

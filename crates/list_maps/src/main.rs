@@ -12,9 +12,11 @@ use chrono::prelude::*;
 use failure::{Fallible, ResultExt};
 use osu_api::{
     data::{self, Beatmap},
-    GetBeatmaps, OsuApi,
+    OsuApi,
 };
 use reqwest::Client;
+use serde_derive::*;
+use serde_json::value::RawValue;
 use std::{
     fs::File,
     io::{BufWriter, Write},
@@ -34,6 +36,8 @@ fn get_api_key() -> Fallible<String> {
 enum App {
     #[structopt(name = "get-maps")]
     GetMaps(GetMaps),
+    #[structopt(name = "get-scores")]
+    GetScores(GetScores),
     #[structopt(name = "render-maps")]
     RenderMaps(RenderMaps),
 }
@@ -52,18 +56,27 @@ struct GetMaps {
 
 #[derive(Debug, StructOpt)]
 struct RenderMaps {
+    #[structopt(long = "game-mode", default_value = "2")]
+    game_mode: String,
     #[structopt(
         long = "out_path",
         default_value = "data/summary.json",
         parse(from_os_str)
     )]
     out_path: PathBuf,
-    #[structopt(long = "min_stars", default_value = "4")]
+    #[structopt(long = "min-stars", default_value = "4")]
     min_stars: f64,
 }
 
 #[derive(Debug, StructOpt)]
-struct ShowMaps {}
+struct GetScores {
+    #[structopt(long = "game-mode", default_value = "2")]
+    game_mode: String,
+    #[structopt(long = "min-stars", default_value = "4")]
+    min_stars: f64,
+    #[structopt(long = "cache-expire")]
+    cache_expire: Option<DateTime<Utc>>,
+}
 
 fn reqwest_client() -> Fallible<Client> {
     use reqwest::header;
@@ -119,25 +132,28 @@ fn retry_forever<T>(name: &str, mut f: impl FnMut() -> Fallible<T>) -> T {
     }
 }
 
+fn cache_key(beatmap_id: &str, game_mode_str: &str) -> String {
+    format!("{}-{}", beatmap_id, game_mode_str)
+}
+
 fn request_all_ranked_maps(
     api: &mut ApiClient,
     cache: &sled::Tree,
-    game_mode: data::GameMode,
+    game_mode: &str,
     include_converts: bool,
     start_date: Option<DateTime<Utc>>,
     end_date: Option<DateTime<Utc>>,
 ) -> Fallible<()> {
-    let game_mode = data::game_mode_to_string(game_mode);
     let include_converts = format!("{}", include_converts as u8);
     let beatmaps_limit = 500;
     let mut last_date = start_date.unwrap_or_else(|| Utc.ymd(2000, 1, 1).and_hms(0, 0, 0));
     let mut processed_beatmap_ids = std::collections::HashSet::new();
     loop {
         let since = last_date - chrono::Duration::seconds(1);
-        let list: Vec<Box<serde_json::value::RawValue>> = retry_forever("Get beatmaps", || {
-            let text = GetBeatmaps::new(api.key.as_ref())
+        let list: Vec<Box<RawValue>> = retry_forever("Get beatmaps", || {
+            let text = osu_api::GetBeatmaps::new(api.key.as_ref())
                 .since(since)
-                .mode(game_mode.clone())
+                .mode(game_mode)
                 .include_converts(include_converts.clone())
                 .limit(beatmaps_limit)
                 .request_text(&mut api.client)
@@ -161,7 +177,7 @@ fn request_all_ranked_maps(
                 continue;
             }
 
-            let key = format!("{}-{}", &essential.beatmap_id, &game_mode);
+            let key = cache_key(&essential.beatmap_id, &game_mode);
             cache.set(&key, entry.get().to_string().into_bytes())?;
 
             let date = match data::date_from_str(&essential.approved_date) {
@@ -199,18 +215,16 @@ fn request_all_ranked_maps(
     }
 }
 
-fn beatmap_entry_cache() -> Fallible<sled::Tree> {
-    Ok(sled::Tree::start_default("db/beatmap_entry")?)
+fn beatmaps_cache() -> Fallible<sled::Tree> {
+    Ok(sled::Tree::start_default("db/beatmaps")?)
 }
 
 fn get_maps(args: &GetMaps) -> Fallible<()> {
     let mut api = api_client()?;
-    let cache = beatmap_entry_cache()?;
+    let cache = beatmaps_cache()?;
 
-    let game_mode = data::game_mode_from_str(&args.game_mode).context("Invalid game mode")?;
-    let include_converts = args
-        .include_converts
-        .unwrap_or(game_mode != data::GameMode::Standard);
+    validate_game_mode_str(&args.game_mode)?;
+    let include_converts = args.include_converts.unwrap_or(args.game_mode != "0");
     let start_date = match args.start_date {
         Some(x) => Some(x),
         None => {
@@ -234,7 +248,7 @@ fn get_maps(args: &GetMaps) -> Fallible<()> {
 
     println!(
         "game_mode = {:?} {} converts, start_date = {:?}, end_date = {:?}",
-        game_mode,
+        args.game_mode,
         if include_converts {
             "including"
         } else {
@@ -246,12 +260,111 @@ fn get_maps(args: &GetMaps) -> Fallible<()> {
     request_all_ranked_maps(
         &mut api,
         &cache,
-        game_mode,
+        &args.game_mode,
         include_converts,
         start_date,
         end_date,
     )?;
     println!("Done!");
+
+    Ok(())
+}
+
+fn scores_cache() -> Fallible<sled::Tree> {
+    Ok(sled::Tree::start_default("db/scores")?)
+}
+
+fn beatmap_stars(beatmap: &Beatmap) -> f64 {
+    f64::from_str(&beatmap.difficultyrating).unwrap_or(0.0)
+}
+
+fn each_filtered_map(min_stars: f64, mut f: impl FnMut(&Beatmap) -> Fallible<()>) -> Fallible<u64> {
+    let cache = beatmaps_cache()?;
+
+    let mut all_maps = 0;
+    for entry in cache.iter() {
+        all_maps += 1;
+
+        let (key, entry) = entry.context("db")?;
+        let beatmap: Beatmap = match serde_json::from_slice(&entry) {
+            Ok(x) => x,
+            Err(e) => {
+                eprintln!(
+                    "{}\nFailed to parse beatmap {}",
+                    e,
+                    String::from_utf8_lossy(&key)
+                );
+                continue;
+            }
+        };
+
+        let stars = beatmap_stars(&beatmap);
+        if stars.is_nan() || stars < min_stars - 1e-9 {
+            continue;
+        }
+
+        f(&beatmap)?;
+    }
+
+    if all_maps == 0 {
+        failure::bail!("No maps found. First run `list-maps get-maps'.")
+    }
+
+    Ok(all_maps)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ScoreCacheValue {
+    pub update_date: DateTime<Utc>,
+    pub scores: Vec<Box<RawValue>>,
+}
+
+fn validate_game_mode_str(game_mode: &str) -> Fallible<()> {
+    let _ = data::game_mode_from_str(game_mode).context("Invalid game mode")?;
+    Ok(())
+}
+
+fn get_scores(args: &GetScores) -> Fallible<()> {
+    validate_game_mode_str(&args.game_mode)?;
+    let mut api = api_client()?;
+    let cache = scores_cache()?;
+    let mut count = 0;
+    each_filtered_map(args.min_stars, |beatmap| {
+        count += 1;
+        let key = cache_key(&beatmap.beatmap_id, &args.game_mode);
+        if let Some(value) = cache.get(&key)? {
+            let value: ScoreCacheValue =
+                serde_json::from_slice(&value).context("db content malformed")?;
+            if match args.cache_expire {
+                Some(dt) => value.update_date < dt,
+                None => true,
+            } {
+                return Ok(());
+            }
+        }
+        let update_date = Utc::now();
+        let scores: Vec<Box<RawValue>> = retry_forever("get_scores", || {
+            let text = osu_api::GetScores::new(api.key.clone(), beatmap.beatmap_id.clone())
+                .mode(args.game_mode.clone())
+                .limit(100)
+                .request_text(&mut api.client)?;
+            Ok(serde_json::from_str(&text).context("malformed JSON")?)
+        });
+        let len = scores.len();
+        cache.set(
+            &key,
+            serde_json::to_vec(&ScoreCacheValue {
+                update_date,
+                scores,
+            })?,
+        )?;
+        println!("{} {}: {} scores", count, beatmap_title(&beatmap), len);
+        sleep_secs(2);
+
+        Ok(())
+    })?;
+
+    println!("{} maps done!", count);
 
     Ok(())
 }
@@ -278,7 +391,7 @@ fn calc_pp(
     accuracy: f64,
     num_misses: f64,
 ) -> CalculatedPp {
-    let mut pp = f64::powf((5.0 * stars / 0.0049) - 4.0, 2.0) / 100000.0;
+    let mut pp = f64::powf((5.0 * stars / 0.0049) - 4.0, 2.0) / 100_000.0;
     let mut length_bonus = 0.95 + 0.4 * f64::min(1.0, max_combo / 3000.0);
     if max_combo > 3000.0 {
         length_bonus += (max_combo / 3000.0).log10() * 0.5;
@@ -305,8 +418,37 @@ fn calc_pp(
     }
 }
 
-fn beatmap_summary(beatmap: &Beatmap) -> Fallible<serde_json::Value> {
-    let stars = f64::from_str(&beatmap.difficultyrating)?;
+fn beatmap_summary(beatmap: &Beatmap, scores: &[Box<RawValue>]) -> Fallible<serde_json::Value> {
+    use osu_api::data::Mods;
+    let mods_mask = Mods::Easy
+        | Mods::Hidden
+        | Mods::HardRock
+        | Mods::DoubleTime
+        | Mods::HalfTime
+        | Mods::Flashlight;
+    let mut fc_count = std::collections::HashMap::new();
+    let mut min_misses = 999;
+    for (i, score) in scores.iter().enumerate() {
+        let score: data::Score = match serde_json::from_str(score.get()) {
+            Ok(x) => x,
+            Err(e) => failure::bail!(
+                "{}\n{}\nFailed to parse score (beatmap id = {}, index = {})",
+                e,
+                score.get(),
+                beatmap.beatmap_id,
+                i
+            ),
+        };
+        min_misses = min_misses.min(i32::from_str(&score.countmiss)?);
+        if u8::from_str(&score.perfect)? == 1 {
+            let relevant_mods = data::mods_from_str(&score.enabled_mods)? & mods_mask;
+            fc_count
+                .entry(relevant_mods)
+                .and_modify(|x| *x += 1)
+                .or_insert(1);
+        }
+    }
+    let stars = beatmap_stars(beatmap);
     let approach_rate = f64::from_str(&beatmap.diff_approach)?;
     let max_combo = beatmap
         .max_combo
@@ -331,51 +473,44 @@ fn beatmap_summary(beatmap: &Beatmap) -> Fallible<serde_json::Value> {
         max_combo,
         approach_rate,
         f64::from_str(&beatmap.diff_size)?,
-        0, // min_misses
-        0, // fcNM
-        0, // fcHD
-        0, // fcHR
-        0, // fcHDHR
-        0, // fcDT
-        0, // fcHDDT
+        min_misses,
+        fc_count.get(&Mods::empty()).unwrap_or(&0),
+        fc_count.get(&Mods::Hidden).unwrap_or(&0),
+        fc_count.get(&Mods::HardRock).unwrap_or(&0),
+        fc_count.get(&(Mods::Hidden | Mods::HardRock)).unwrap_or(&0),
+        fc_count.get(&Mods::DoubleTime).unwrap_or(&0),
+        fc_count
+            .get(&(Mods::Hidden | Mods::DoubleTime))
+            .unwrap_or(&0),
     ]))
 }
 
 fn render_maps(args: &RenderMaps) -> Fallible<()> {
-    let cache = beatmap_entry_cache()?;
-
+    validate_game_mode_str(&args.game_mode)?;
     let mut rows = Vec::new();
-    let mut all_maps = 0;
-    for entry in cache.iter() {
-        all_maps += 1;
-
-        let (key, entry) = entry.context("db")?;
-        let beatmap: Beatmap = match serde_json::from_slice(&entry) {
-            Ok(x) => x,
-            Err(e) => {
-                eprintln!(
-                    "{}\nFailed to parse beatmap {}",
-                    e,
-                    String::from_utf8_lossy(&key)
-                );
-                continue;
+    let cache = scores_cache()?;
+    let all_maps = each_filtered_map(args.min_stars, |beatmap| {
+        let scores = match cache.get(&cache_key(&beatmap.beatmap_id, &args.game_mode))? {
+            Some(value) => {
+                let value: ScoreCacheValue =
+                    serde_json::from_slice(&value).context("db content is malformed")?;
+                value.scores
             }
+            None => return Ok(()),
         };
-
-        let stars = f64::from_str(&beatmap.difficultyrating).unwrap_or(0.0);
-        if stars.is_nan() || stars < args.min_stars - 1e-9 {
-            continue;
-        }
-
-        match beatmap_summary(&beatmap) {
+        match beatmap_summary(&beatmap, &scores) {
             Ok(summary) => {
-                rows.push((stars, serde_json::to_string(&summary)?));
+                rows.push((beatmap_stars(beatmap), serde_json::to_string(&summary)?));
             }
             Err(e) => {
                 eprintln!("{}\nFailed to render summary", e);
-                continue;
             }
         }
+        Ok(())
+    })?;
+
+    if all_maps == 0 {
+        failure::bail!("No maps found. First run `list-maps get-maps'.")
     }
 
     rows.sort_by(|x, y| y.0.partial_cmp(&x.0).unwrap());
@@ -383,14 +518,14 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
 
     println!("Writing to {}", args.out_path.display());
     let mut out = BufWriter::new(File::create(&args.out_path)?);
-    write!(&mut out, "[\n")?;
+    writeln!(&mut out, "[")?;
     for (i, (_, value)) in rows.into_iter().enumerate() {
         if i != 0 {
-            write!(&mut out, ",\n")?;
+            writeln!(&mut out, ",")?;
         }
         write!(&mut out, "{}", value)?;
     }
-    write!(&mut out, "\n]")?;
+    writeln!(&mut out, "\n]")?;
     drop(out);
     println!("{} / {} maps done.", rows_len, all_maps);
 
@@ -400,6 +535,7 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
 fn main() {
     match App::from_args() {
         App::GetMaps(args) => get_maps(&args),
+        App::GetScores(args) => get_scores(&args),
         App::RenderMaps(args) => render_maps(&args),
     }
     .unwrap_or_else(|e| {

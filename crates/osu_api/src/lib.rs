@@ -1,3 +1,4 @@
+extern crate bitflags;
 extern crate chrono;
 extern crate failure;
 extern crate num_enum;
