@@ -339,6 +339,8 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
                 Some(dt) => value.update_date < dt,
                 None => true,
             } {
+                eprintln!("Beatmap {} skipped: scores have not downloaded.",
+                    &beatmap.beatmap_id);
                 return Ok(());
             }
         }
@@ -489,9 +491,11 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
     validate_game_mode_str(&args.game_mode)?;
     let mut rows = Vec::new();
     let cache = scores_cache()?;
+    let mut no_scores = true;
     let all_maps = each_filtered_map(args.min_stars, |beatmap| {
         let scores = match cache.get(&cache_key(&beatmap.beatmap_id, &args.game_mode))? {
             Some(value) => {
+                no_scores = false;
                 let value: ScoreCacheValue =
                     serde_json::from_slice(&value).context("db content is malformed")?;
                 value.scores
@@ -509,8 +513,8 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
         Ok(())
     })?;
 
-    if all_maps == 0 {
-        failure::bail!("No maps found. First run `list-maps get-maps'.")
+    if no_scores {
+        failure::bail!("No scores found. First run `list-maps get-scores'.")
     }
 
     rows.sort_by(|x, y| y.0.partial_cmp(&x.0).unwrap());
