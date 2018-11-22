@@ -211,7 +211,7 @@ fn request_all_ranked_maps(
 
         last_date = next_date;
 
-        sleep_secs(5);
+        sleep_secs(20);
     }
 }
 
