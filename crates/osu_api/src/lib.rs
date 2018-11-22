@@ -8,14 +8,12 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate serde_urlencoded;
 
-mod data;
-
-pub use self::data::*;
+pub mod data;
 
 use chrono::prelude::*;
 use osu_api_internal_derive::Api;
 use reqwest::Client;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
 use serde_derive::{Deserialize, Serialize};
 
 fn make_url(name: &str) -> String {
@@ -39,20 +37,19 @@ pub fn username(username: impl Into<String>) -> UserIdOrUsername {
     UserIdOrUsername::Username(username.into())
 }
 
-fn request<Q: Serialize, R: DeserializeOwned>(
+fn request<Q: Serialize>(
     client: &mut reqwest::Client,
     api_name: &'static str,
     query: &Q,
-) -> reqwest::Result<R> {
+) -> reqwest::Result<String> {
     let mut res = client.get(&make_url(api_name)).query(query).send()?;
-    res.json()
+    res.text()
 }
 
 pub trait OsuApi: Sized + Serialize {
-    type Output: DeserializeOwned;
     fn api_name() -> &'static str;
 
-    fn request(&self, client: &mut Client) -> reqwest::Result<Self::Output> {
+    fn request_text(&self, client: &mut Client) -> reqwest::Result<String> {
         request(client, Self::api_name(), self)
     }
 }
@@ -81,7 +78,6 @@ pub struct GetBeatmaps {
 }
 
 impl OsuApi for GetBeatmaps {
-    type Output = Vec<Beatmap>;
     fn api_name() -> &'static str {
         "get_beatmaps"
     }
@@ -114,7 +110,6 @@ pub struct GetUser {
 }
 
 impl OsuApi for GetUser {
-    type Output = User;
     fn api_name() -> &'static str {
         "get_user"
     }
@@ -145,7 +140,6 @@ pub struct GetScores {
 }
 
 impl OsuApi for GetScores {
-    type Output = Vec<Score>;
     fn api_name() -> &'static str {
         "get_scores"
     }

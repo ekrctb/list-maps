@@ -1,5 +1,3 @@
-// TODO: use synstructure
-
 #![feature(extern_crate_item_prelude)]
 #![allow(clippy::eval_order_dependence)]
 
@@ -35,7 +33,9 @@ struct InputField {
 #[allow(unused)]
 struct GetterAttrMeta {
     paren_token: token::Paren,
-    getter_name: Ident,
+    ty: Type,
+    comma_token: Option<Token![,]>,
+    getter_name: Option<Ident>,
 }
 
 impl Parse for Input {
@@ -67,9 +67,19 @@ impl Parse for InputField {
 impl Parse for GetterAttrMeta {
     fn parse(input: ParseStream) -> Result<Self> {
         let content;
+        let paren_token = parenthesized!(content in input);
+        let ty = content.parse()?;
+        let comma_token: Option<Token![,]> = content.parse()?;
+        let getter_name = if comma_token.is_some() {
+            Some(content.parse()?)
+        } else {
+            None
+        };
         Ok(GetterAttrMeta {
-            paren_token: parenthesized!(content in input),
-            getter_name: content.parse()?,
+            paren_token,
+            ty,
+            comma_token,
+            getter_name,
         })
     }
 }
@@ -145,25 +155,26 @@ pub fn derive_api(input: TS1) -> TS1 {
     TS1::from(expanded)
 }
 
-#[proc_macro_derive(Getters, attributes(get_f64))]
+#[proc_macro_derive(Getters, attributes(get))]
 pub fn derive_getters(input: TS1) -> TS1 {
     let input = parse_macro_input!(input as Input);
     let mut getters = Vec::new();
     for field in input.fields {
         for attr in field.attrs {
             let span = attr.tts.span();
-            if !attr.path.is_ident("get_f64") {
+            if !attr.path.is_ident("get") {
                 continue;
             }
             let meta: GetterAttrMeta = match parse2(attr.tts) {
                 Ok(x) => x,
                 Err(e) => return parse::Error::new(span, e).to_compile_error().into(),
             };
-            let getter_name = meta.getter_name;
             let name = field.name.clone();
+            let ty = meta.ty;
+            let getter_name = meta.getter_name.unwrap_or_else(|| name.clone());
             getters.push(quote! {
-                pub fn #getter_name(&self) -> Result<f64, <f64 as FromStr>::Err> {
-                    f64::from_str(self.#name.as_ref())
+                pub fn #getter_name(&self) -> Result<#ty, <#ty as FromStr>::Err> {
+                    #ty::from_str(self.#name.as_ref())
                 }
             });
         }
