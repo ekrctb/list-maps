@@ -2,38 +2,67 @@ use chrono::prelude::*;
 use failure::Fallible;
 use num_enum::{CustomTryInto, IntoPrimitive};
 use serde_derive::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Beatmap<'a> {
-    pub approved: &'a str,
-    pub approved_date: Option<&'a str>,
-    pub last_update: &'a str,
-    pub artist: &'a str,
-    pub beatmap_id: &'a str,
-    pub beatmapset_id: &'a str,
-    pub bpm: &'a str,
-    pub creator: &'a str,
-    pub creator_id: &'a str,
-    pub difficultyrating: &'a str,
-    pub diff_size: &'a str,
-    pub diff_overall: &'a str,
-    pub diff_approach: &'a str,
-    pub diff_drain: &'a str,
-    pub hit_length: &'a str,
-    pub source: &'a str,
-    pub genre_id: &'a str,
-    pub language_id: &'a str,
-    pub title: &'a str,
-    pub total_length: &'a str,
-    pub version: &'a str,
-    pub file_md5: Option<&'a str>,
-    pub mode: &'a str,
-    pub tags: &'a str,
-    pub favourite_count: &'a str,
-    pub playcount: &'a str,
-    pub passcount: &'a str,
-    pub max_combo: Option<&'a str>,
+    #[serde(borrow)]
+    pub approved: Cow<'a, str>,
+    #[serde(borrow)]
+    pub approved_date: Option<Cow<'a, str>>,
+    #[serde(borrow)]
+    pub last_update: Cow<'a, str>,
+    #[serde(borrow)]
+    pub artist: Cow<'a, str>,
+    #[serde(borrow)]
+    pub beatmap_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub beatmapset_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub bpm: Cow<'a, str>,
+    #[serde(borrow)]
+    pub creator: Cow<'a, str>,
+    #[serde(borrow)]
+    pub creator_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub difficultyrating: Cow<'a, str>,
+    #[serde(borrow)]
+    pub diff_size: Cow<'a, str>,
+    #[serde(borrow)]
+    pub diff_overall: Cow<'a, str>,
+    #[serde(borrow)]
+    pub diff_approach: Cow<'a, str>,
+    #[serde(borrow)]
+    pub diff_drain: Cow<'a, str>,
+    #[serde(borrow)]
+    pub hit_length: Cow<'a, str>,
+    #[serde(borrow)]
+    pub source: Cow<'a, str>,
+    #[serde(borrow)]
+    pub genre_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub language_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub title: Cow<'a, str>,
+    #[serde(borrow)]
+    pub total_length: Cow<'a, str>,
+    #[serde(borrow)]
+    pub version: Cow<'a, str>,
+    #[serde(borrow)]
+    pub file_md5: Option<Cow<'a, str>>,
+    #[serde(borrow)]
+    pub mode: Cow<'a, str>,
+    #[serde(borrow)]
+    pub tags: Cow<'a, str>,
+    #[serde(borrow)]
+    pub favourite_count: Cow<'a, str>,
+    #[serde(borrow)]
+    pub playcount: Cow<'a, str>,
+    #[serde(borrow)]
+    pub passcount: Cow<'a, str>,
+    #[serde(borrow)]
+    pub max_combo: Option<Cow<'a, str>>,
 }
 
 pub fn date_from_str(s: &str) -> Fallible<DateTime<Utc>> {
@@ -100,56 +129,100 @@ fn beatmap_parse() {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User<'a> {
-    pub user_id: &'a str,
-    pub username: &'a str,
-    pub join_date: &'a str,
-    pub count300: &'a str,
-    pub count100: &'a str,
-    pub count50: &'a str,
-    pub playcount: &'a str,
-    pub ranked_score: &'a str,
-    pub total_score: &'a str,
-    pub pp_rank: &'a str,
-    pub level: &'a str,
-    pub pp_raw: &'a str,
-    pub accuracy: &'a str,
-    pub count_rank_ss: &'a str,
-    pub count_rank_ssh: &'a str,
-    pub count_rank_s: &'a str,
-    pub count_rank_sh: &'a str,
-    pub count_rank_a: &'a str,
-    pub country: &'a str,
-    pub total_seconds_played: &'a str,
-    pub pp_country_rank: &'a str,
+    #[serde(borrow)]
+    pub user_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub username: Cow<'a, str>,
+    #[serde(borrow)]
+    pub join_date: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count300: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count100: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count50: Cow<'a, str>,
+    #[serde(borrow)]
+    pub playcount: Cow<'a, str>,
+    #[serde(borrow)]
+    pub ranked_score: Cow<'a, str>,
+    #[serde(borrow)]
+    pub total_score: Cow<'a, str>,
+    #[serde(borrow)]
+    pub pp_rank: Cow<'a, str>,
+    #[serde(borrow)]
+    pub level: Cow<'a, str>,
+    #[serde(borrow)]
+    pub pp_raw: Cow<'a, str>,
+    #[serde(borrow)]
+    pub accuracy: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count_rank_ss: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count_rank_ssh: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count_rank_s: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count_rank_sh: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count_rank_a: Cow<'a, str>,
+    #[serde(borrow)]
+    pub country: Cow<'a, str>,
+    #[serde(borrow)]
+    pub total_seconds_played: Cow<'a, str>,
+    #[serde(borrow)]
+    pub pp_country_rank: Cow<'a, str>,
+    #[serde(borrow)]
     pub events: Vec<UserEvent<'a>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserEvent<'a> {
-    pub display_html: &'a str,
-    pub beatmap_id: &'a str,
-    pub beatmapset_id: &'a str,
-    pub date: &'a str,
-    pub epicfactor: &'a str,
+    #[serde(borrow)]
+    pub display_html: Cow<'a, str>,
+    #[serde(borrow)]
+    pub beatmap_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub beatmapset_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub date: Cow<'a, str>,
+    #[serde(borrow)]
+    pub epicfactor: Cow<'a, str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Score<'a> {
-    pub score_id: &'a str,
-    pub score: &'a str,
-    pub username: &'a str,
-    pub count300: &'a str,
-    pub count100: &'a str,
-    pub count50: &'a str,
-    pub countmiss: &'a str,
-    pub maxcombo: &'a str,
-    pub countkatu: &'a str,
-    pub countgeki: &'a str,
-    pub perfect: &'a str,
-    pub enabled_mods: &'a str,
-    pub user_id: &'a str,
-    pub date: &'a str,
-    pub rank: &'a str,
-    pub pp: &'a str,
-    pub replay_available: &'a str,
+    #[serde(borrow)]
+    pub score_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub score: Cow<'a, str>,
+    #[serde(borrow)]
+    pub username: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count300: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count100: Cow<'a, str>,
+    #[serde(borrow)]
+    pub count50: Cow<'a, str>,
+    #[serde(borrow)]
+    pub countmiss: Cow<'a, str>,
+    #[serde(borrow)]
+    pub maxcombo: Cow<'a, str>,
+    #[serde(borrow)]
+    pub countkatu: Cow<'a, str>,
+    #[serde(borrow)]
+    pub countgeki: Cow<'a, str>,
+    #[serde(borrow)]
+    pub perfect: Cow<'a, str>,
+    #[serde(borrow)]
+    pub enabled_mods: Cow<'a, str>,
+    #[serde(borrow)]
+    pub user_id: Cow<'a, str>,
+    #[serde(borrow)]
+    pub date: Cow<'a, str>,
+    #[serde(borrow)]
+    pub rank: Cow<'a, str>,
+    #[serde(borrow)]
+    pub pp: Cow<'a, str>,
+    #[serde(borrow)]
+    pub replay_available: Cow<'a, str>,
 }
