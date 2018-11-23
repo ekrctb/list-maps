@@ -40,6 +40,8 @@ enum App {
     GetScores(GetScores),
     #[structopt(name = "render-maps")]
     RenderMaps(RenderMaps),
+    #[structopt(name = "render-ranking")]
+    RenderRanking(RenderRanking),
 }
 
 #[derive(Debug, StructOpt)]
@@ -76,6 +78,20 @@ struct GetScores {
     min_stars: f64,
     #[structopt(long = "cache-expire")]
     cache_expire: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, StructOpt)]
+struct RenderRanking {
+    #[structopt(
+        long = "out_path",
+        default_value = "data/ranking.json",
+        parse(from_os_str)
+    )]
+    out_path: PathBuf,
+    #[structopt(long = "min-stars", default_value = "4")]
+    min_stars: f64,
+    #[structopt(long = "game-mode", default_value = "2")]
+    game_mode: String,
 }
 
 fn reqwest_client() -> Fallible<Client> {
@@ -485,13 +501,16 @@ fn beatmap_summary(beatmap: &Beatmap, scores: &[Box<RawValue>]) -> Fallible<serd
     ]))
 }
 
-fn render_maps(args: &RenderMaps) -> Fallible<()> {
-    validate_game_mode_str(&args.game_mode)?;
-    let mut rows = Vec::new();
+fn each_filtered_map_with_scores(
+    min_stars: f64,
+    game_mode: &str,
+    mut f: impl FnMut(&Beatmap, &[Box<RawValue>]) -> Fallible<()>,
+) -> Fallible<u64> {
     let cache = scores_cache()?;
     let mut no_scores = true;
-    let all_maps = each_filtered_map(args.min_stars, |beatmap| {
-        let scores = match cache.get(&cache_key(&beatmap.beatmap_id, &args.game_mode))? {
+
+    let all_maps = each_filtered_map(min_stars, |beatmap| {
+        let scores = match cache.get(&cache_key(&beatmap.beatmap_id, game_mode))? {
             Some(value) => {
                 no_scores = false;
                 let value: ScoreCacheValue =
@@ -499,43 +518,172 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
                 value.scores
             }
             None => {
-                eprintln!("Beatmap {} skipped: scores have not downloaded.",
-                    &beatmap.beatmap_id);
-                return Ok(())
-            },
+                eprintln!(
+                    "Beatmap {} skipped: scores have not downloaded.",
+                    &beatmap.beatmap_id
+                );
+                return Ok(());
+            }
         };
-        match beatmap_summary(&beatmap, &scores) {
-            Ok(summary) => {
-                rows.push((beatmap_stars(beatmap), serde_json::to_string(&summary)?));
-            }
-            Err(e) => {
-                eprintln!("{}\nFailed to render summary", e);
-            }
-        }
-        Ok(())
+
+        f(beatmap, &scores)
     })?;
 
     if no_scores {
         failure::bail!("No scores found. First run `list-maps get-scores'.")
     }
 
-    rows.sort_by(|x, y| y.0.partial_cmp(&x.0).unwrap());
-    let rows_len = rows.len();
+    Ok(all_maps)
+}
 
-    println!("Writing to {}", args.out_path.display());
-    let mut out = BufWriter::new(File::create(&args.out_path)?);
+fn output_rows<T: std::fmt::Display>(
+    all_maps: u64,
+    rows: impl IntoIterator<Item = T>,
+    out_path: &std::path::Path,
+) -> Fallible<()> {
+    println!("Writing to {}", out_path.display());
+    let mut out = BufWriter::new(File::create(&out_path)?);
     writeln!(&mut out, "[")?;
-    for (i, (_, value)) in rows.into_iter().enumerate() {
-        if i != 0 {
+    let mut rows_len = 0;
+    for value in rows {
+        if rows_len != 0 {
             writeln!(&mut out, ",")?;
         }
         write!(&mut out, "{}", value)?;
+        rows_len += 1;
     }
     writeln!(&mut out, "\n]")?;
     drop(out);
     println!("{} / {} maps done.", rows_len, all_maps);
-
     Ok(())
+}
+
+fn render_maps(args: &RenderMaps) -> Fallible<()> {
+    validate_game_mode_str(&args.game_mode)?;
+
+    let mut rows = Vec::new();
+    let all_maps =
+        each_filtered_map_with_scores(args.min_stars, &args.game_mode, |beatmap, scores| {
+            match beatmap_summary(&beatmap, &scores) {
+                Ok(summary) => {
+                    rows.push((beatmap_stars(beatmap), serde_json::to_string(&summary)?));
+                }
+                Err(e) => {
+                    eprintln!("{}\nFailed to render summary", e);
+                }
+            }
+            Ok(())
+        })?;
+
+    rows.sort_by(|x, y| y.0.partial_cmp(&x.0).unwrap());
+    output_rows(all_maps, rows.into_iter().map(|t| t.1), &args.out_path)
+}
+
+fn calc_accuracy(score: &data::Score) -> Fallible<f64> {
+    let c300 = f64::from_str(&score.count300)?;
+    let c100 = f64::from_str(&score.count100)?;
+    let c50 = f64::from_str(&score.count50)?;
+    let ckatu = f64::from_str(&score.countkatu)?;
+    let cmiss = f64::from_str(&score.countmiss)?;
+    Ok(100.0 * (c300 + c100 + c50) / (c300 + c100 + c50 + ckatu + cmiss))
+}
+
+fn mod_names(mods: data::Mods) -> Vec<&'static str> {
+    use osu_api::data::Mods;
+    let mut names = Vec::new();
+    if mods.contains(Mods::NoFail) {
+        names.push("NF");
+    }
+    if mods.contains(Mods::Easy) {
+        names.push("EZ");
+    }
+    if mods.contains(Mods::Hidden) {
+        names.push("HD");
+    }
+    if mods.contains(Mods::DoubleTime) {
+        names.push(if mods.contains(Mods::Nightcore) {
+            "NC"
+        } else {
+            "DT"
+        });
+    }
+    if mods.contains(Mods::HalfTime) {
+        names.push("HT");
+    }
+    if mods.contains(Mods::HardRock) {
+        names.push("HR");
+    }
+    if mods.contains(Mods::Flashlight) {
+        names.push("FL");
+    }
+    if mods.contains(Mods::SuddenDeath) {
+        names.push(if mods.contains(Mods::Perfect) {
+            "PF"
+        } else {
+            "SD"
+        });
+    }
+    names
+}
+
+fn ranking_row(beatmap: &Beatmap, score: &data::Score, pp: f64) -> Fallible<serde_json::Value> {
+    Ok(serde_json::json!([
+        beatmap_stars(beatmap),
+        pp,
+        score.user_id,
+        score.username,
+        beatmap.beatmap_id,
+        beatmap.beatmapset_id,
+        beatmap_title(beatmap),
+        mod_names(data::mods_from_str(&score.enabled_mods)?).concat(),
+        calc_accuracy(score)?,
+        if score.perfect != "0" {
+            "FC".to_string()
+        } else {
+            format!(
+                "{}/{}x {}m",
+                score.maxcombo,
+                beatmap
+                    .max_combo
+                    .as_ref()
+                    .map(|r| r.as_ref())
+                    .unwrap_or("0"),
+                score.countmiss
+            )
+        },
+        score.date
+    ]))
+}
+
+fn render_ranking(args: &RenderRanking) -> Fallible<()> {
+    validate_game_mode_str(&args.game_mode)?;
+
+    let mut rows = Vec::new();
+    let all_maps =
+        each_filtered_map_with_scores(args.min_stars, &args.game_mode, |beatmap, scores| {
+            for score in scores {
+                let score: data::Score = serde_json::from_str(score.get())?;
+                let pp = match &score.pp {
+                    Some(s) => f64::from_str(&s).unwrap_or(0.0),
+                    None => continue,
+                };
+                if pp.is_nan() || pp < 400.0 {
+                    continue;
+                }
+                match ranking_row(&beatmap, &score, pp) {
+                    Ok(row) => {
+                        rows.push((pp, serde_json::to_string(&row)?));
+                    }
+                    Err(e) => {
+                        eprintln!("{}\nFailed to render summary", e);
+                    }
+                }
+            }
+            Ok(())
+        })?;
+
+    rows.sort_by(|x, y| y.0.partial_cmp(&x.0).unwrap());
+    output_rows(all_maps, rows.into_iter().map(|t| t.1), &args.out_path)
 }
 
 fn main() {
@@ -543,6 +691,7 @@ fn main() {
         App::GetMaps(args) => get_maps(&args),
         App::GetScores(args) => get_scores(&args),
         App::RenderMaps(args) => render_maps(&args),
+        App::RenderRanking(args) => render_ranking(&args),
     }
     .unwrap_or_else(|e| {
         for cause in e.iter_chain() {

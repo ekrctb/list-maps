@@ -69,10 +69,9 @@ class SummaryRow {
 
 type RankingRowData =
 [
-    number, number, number, string, string, string, string, string, string, number, string, string
+    number, number, string, string, string, string, string, string, number, string, string
 ];
 class RankingRow {
-    rank: number;
     stars: number;
     pp: number;
     user_id: string;
@@ -87,9 +86,8 @@ class RankingRow {
     accuracy: number;
     combo_display: string;
     date_played_string: string;
-    constructor(private readonly data: RankingRowData) {
+    constructor(public readonly rank: number, private readonly data: RankingRowData) {
         [
-            this.rank,
             this.stars,
             this.pp,
             this.user_id,
@@ -972,7 +970,7 @@ function rankingMain() {
             .append($('<time>')
                 .attr('datetime', lastModified.toISOString())
                 .text(lastModified.toISOString().split('T')[0]));
-        rankingRows = data.map(x => new RankingRow(x));
+        rankingRows = data.map((x, i) => new RankingRow(i + 1, x));
         initUnsortedRankingTableRows();
         drawRankingTable();
         $('#summary-table-loader').hide();
