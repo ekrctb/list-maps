@@ -663,8 +663,8 @@ fn render_ranking(args: &RenderRanking) -> Fallible<()> {
     let mut rows = Vec::new();
     let all_maps =
         each_filtered_map_with_scores(args.min_stars, &args.game_mode, |beatmap, scores| {
-            if (&beatmap.mode == &args.game_mode) != args.specific_maps {
-                return Ok(())
+            if (beatmap.mode == args.game_mode) != args.specific_maps {
+                return Ok(());
             }
             for score in scores {
                 let score: data::Score = serde_json::from_str(score.get())?;
