@@ -92,6 +92,8 @@ struct RenderRanking {
     min_stars: f64,
     #[structopt(long = "game-mode", default_value = "2")]
     game_mode: String,
+    #[structopt(long = "specific-maps")]
+    specific_maps: bool,
 }
 
 fn reqwest_client() -> Fallible<Client> {
@@ -661,6 +663,9 @@ fn render_ranking(args: &RenderRanking) -> Fallible<()> {
     let mut rows = Vec::new();
     let all_maps =
         each_filtered_map_with_scores(args.min_stars, &args.game_mode, |beatmap, scores| {
+            if (&beatmap.mode == &args.game_mode) != args.specific_maps {
+                return Ok(())
+            }
             for score in scores {
                 let score: data::Score = serde_json::from_str(score.get())?;
                 let pp = match &score.pp {
