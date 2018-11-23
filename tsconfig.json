@@ -1,25 +1,23 @@
 {
     "compilerOptions": {
-        "target": "es5",
+        "target": "es6",
         "module": "none",
         "lib": [
-            "dom",
             "es6",
-            "scripthost"
+            "dom"
         ],
 
-         "types": [
+        "types": [
             "node",
             "jquery",
-            "pako",
-            "text-encoding"
-         ],
-         "inlineSourceMap": true,
-         "inlineSources": true,
-         
-         "strict": true,
+            "pako"
+        ],
+        "inlineSourceMap": true,
+        "inlineSources": true,
 
-         "outDir": "dist"
+        "strict": true,
+
+        "outDir": "dist"
     },
     "include": [
         "src/*"

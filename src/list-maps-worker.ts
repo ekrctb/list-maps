@@ -1,3 +1,7 @@
+
+declare function importScripts(_: any): any;
+declare function postMessage(_: any): any;
+
 namespace ListMaps {
 
 importScripts('https://cdn.jsdelivr.net/pako/1.0.3/pako.min.js');
