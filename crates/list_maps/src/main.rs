@@ -11,7 +11,7 @@ extern crate structopt;
 use chrono::prelude::*;
 use failure::{Fallible, ResultExt};
 use osu_api::{
-    data::{self, Beatmap},
+    data::{self, Beatmap, Score},
     OsuApi,
 };
 use reqwest::Client;
@@ -42,6 +42,8 @@ enum App {
     RenderMaps(RenderMaps),
     #[structopt(name = "render-ranking")]
     RenderRanking(RenderRanking),
+    #[structopt(name = "find-scores")]
+    FindScores(FindScores),
 }
 
 #[derive(Debug, StructOpt)]
@@ -94,6 +96,12 @@ struct RenderRanking {
     game_mode: String,
     #[structopt(long = "specific-maps")]
     specific_maps: bool,
+}
+
+#[derive(Debug, StructOpt)]
+struct FindScores {
+    #[structopt(long = "high-ar")]
+    high_ar: f64,
 }
 
 fn reqwest_client() -> Fallible<Client> {
@@ -447,7 +455,7 @@ fn beatmap_summary(beatmap: &Beatmap, scores: &[Box<RawValue>]) -> Fallible<serd
     let mut fc_count = std::collections::HashMap::new();
     let mut min_misses = 999;
     for (i, score) in scores.iter().enumerate() {
-        let score: data::Score = match serde_json::from_str(score.get()) {
+        let score: Score = match serde_json::from_str(score.get()) {
             Ok(x) => x,
             Err(e) => failure::bail!(
                 "{}\n{}\nFailed to parse score (beatmap id = {}, index = {})",
@@ -468,11 +476,7 @@ fn beatmap_summary(beatmap: &Beatmap, scores: &[Box<RawValue>]) -> Fallible<serd
     }
     let stars = beatmap_stars(beatmap);
     let approach_rate = f64::from_str(&beatmap.diff_approach)?;
-    let max_combo = beatmap
-        .max_combo
-        .as_ref()
-        .map(|s| f64::from_str(&s))
-        .unwrap_or(Ok(0.0))?;
+    let max_combo = max_combo(&beatmap)?;
     let pp = calc_pp(stars, approach_rate, max_combo, max_combo, 100.0, 0.0);
     Ok(serde_json::json!([
         i8::from_str(&beatmap.approved)?,
@@ -581,7 +585,7 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
     output_rows(all_maps, rows.into_iter().map(|t| t.1), &args.out_path)
 }
 
-fn calc_accuracy(score: &data::Score) -> Fallible<f64> {
+fn calc_accuracy(score: &Score) -> Fallible<f64> {
     let c300 = f64::from_str(&score.count300)?;
     let c100 = f64::from_str(&score.count100)?;
     let c50 = f64::from_str(&score.count50)?;
@@ -628,7 +632,28 @@ fn mod_names(mods: data::Mods) -> Vec<&'static str> {
     names
 }
 
-fn ranking_row(beatmap: &Beatmap, score: &data::Score, pp: f64) -> Fallible<serde_json::Value> {
+fn max_combo(beatmap: &Beatmap) -> Fallible<f64> {
+    Ok(beatmap
+        .max_combo
+        .as_ref()
+        .ok_or_else(|| failure::err_msg("max_combo is null"))?
+        .parse()?)
+}
+
+fn fc_or_miss_display(beatmap: &Beatmap, score: &Score) -> Fallible<String> {
+    Ok(if score.perfect == "1" {
+        "FC".to_string()
+    } else {
+        format!(
+            "{}/{}x {}m",
+            score.maxcombo,
+            max_combo(&beatmap)?,
+            score.countmiss
+        )
+    })
+}
+
+fn ranking_row(beatmap: &Beatmap, score: &Score, pp: f64) -> Fallible<serde_json::Value> {
     Ok(serde_json::json!([
         beatmap_stars(beatmap),
         pp,
@@ -639,20 +664,7 @@ fn ranking_row(beatmap: &Beatmap, score: &data::Score, pp: f64) -> Fallible<serd
         beatmap_title(beatmap),
         mod_names(data::mods_from_str(&score.enabled_mods)?).concat(),
         calc_accuracy(score)?,
-        if score.perfect != "0" {
-            "FC".to_string()
-        } else {
-            format!(
-                "{}/{}x {}m",
-                score.maxcombo,
-                beatmap
-                    .max_combo
-                    .as_ref()
-                    .map(|r| r.as_ref())
-                    .unwrap_or("0"),
-                score.countmiss
-            )
-        },
+        fc_or_miss_display(&beatmap, &score)?,
         score.date
     ]))
 }
@@ -667,7 +679,7 @@ fn render_ranking(args: &RenderRanking) -> Fallible<()> {
                 return Ok(());
             }
             for score in scores {
-                let score: data::Score = serde_json::from_str(score.get())?;
+                let score: Score = serde_json::from_str(score.get())?;
                 let pp = match &score.pp {
                     Some(s) => f64::from_str(&s).unwrap_or(0.0),
                     None => continue,
@@ -691,12 +703,72 @@ fn render_ranking(args: &RenderRanking) -> Fallible<()> {
     output_rows(all_maps, rows.into_iter().map(|t| t.1), &args.out_path)
 }
 
+fn score_display(beatmap: &Beatmap, score: &Score, index: usize) -> Fallible<String> {
+    use std::fmt::Write;
+    let mod_names = mod_names(data::mods_from_str(&score.enabled_mods)?);
+    let mut buf = String::new();
+    buf.push_str(&score.username);
+    buf.push_str(" | ");
+    buf.push_str(&beatmap_title(&beatmap));
+    if !mod_names.is_empty() {
+        buf.push_str(" +");
+        buf.push_str(&mod_names.concat());
+    }
+    write!(&mut buf, " {:.2}% ", calc_accuracy(&score)?).unwrap();
+    buf.push_str(&fc_or_miss_display(&beatmap, &score)?);
+    write!(&mut buf, " #{}", index + 1).unwrap();
+    if let Some(pp) = &score.pp {
+        write!(&mut buf, " | {:.0}pp", f64::from_str(&pp)?).unwrap();
+    }
+    Ok(buf)
+}
+
+fn find_scores(args: &FindScores) -> Fallible<()> {
+    use osu_api::data::Mods;
+    // Finding criteria are hardcoded for now.
+    // Find high-AR DT ranked FCs.
+    each_filtered_map_with_scores(4.0, "2", |beatmap, scores| {
+        for (i, score) in scores.iter().enumerate() {
+            // only ranked or approved maps
+            if beatmap.approved != "1" && beatmap.approved != "2" {
+                continue;
+            }
+            let ar = f64::from_str(&beatmap.diff_approach)?;
+
+            let score: Score = serde_json::from_str(score.get())?;
+            let mods = data::mods_from_str(&score.enabled_mods)?;
+            if score.perfect != "1"
+                || mods.contains(Mods::HalfTime)
+                || !mods.contains(Mods::DoubleTime)
+            {
+                continue;
+            }
+            let ar = 10f64.min(
+                ar * if mods.contains(Mods::Easy) {
+                    0.5
+                } else if mods.contains(Mods::HardRock) {
+                    1.4
+                } else {
+                    1.0
+                },
+            );
+            if ar < args.high_ar - 1e-9 {
+                continue;
+            }
+            println!("AR{:.2}+: {}", ar, score_display(&beatmap, &score, i)?);
+        }
+        Ok(())
+    })?;
+    Ok(())
+}
+
 fn main() {
     match App::from_args() {
         App::GetMaps(args) => get_maps(&args),
         App::GetScores(args) => get_scores(&args),
         App::RenderMaps(args) => render_maps(&args),
         App::RenderRanking(args) => render_ranking(&args),
+        App::FindScores(args) => find_scores(&args),
     }
     .unwrap_or_else(|e| {
         for cause in e.iter_chain() {
