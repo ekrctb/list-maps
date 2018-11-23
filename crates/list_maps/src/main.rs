@@ -339,8 +339,6 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
                 Some(dt) => value.update_date < dt,
                 None => true,
             } {
-                eprintln!("Beatmap {} skipped: scores have not downloaded.",
-                    &beatmap.beatmap_id);
                 return Ok(());
             }
         }
@@ -500,7 +498,11 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
                     serde_json::from_slice(&value).context("db content is malformed")?;
                 value.scores
             }
-            None => return Ok(()),
+            None => {
+                eprintln!("Beatmap {} skipped: scores have not downloaded.",
+                    &beatmap.beatmap_id);
+                return Ok(())
+            },
         };
         match beatmap_summary(&beatmap, &scores) {
             Ok(summary) => {
