@@ -465,9 +465,12 @@ fn beatmap_summary(beatmap: &Beatmap, scores: &[Box<RawValue>]) -> Fallible<serd
                 i
             ),
         };
-        min_misses = min_misses.min(i32::from_str(&score.countmiss)?);
+        let mods = data::mods_from_str(&score.enabled_mods)?;
+        if !mods.contains(Mods::HalfTime) {
+            min_misses = min_misses.min(i32::from_str(&score.countmiss)?);
+        }
         if u8::from_str(&score.perfect)? == 1 {
-            let relevant_mods = data::mods_from_str(&score.enabled_mods)? & mods_mask;
+            let relevant_mods = mods & mods_mask;
             fc_count
                 .entry(relevant_mods)
                 .and_modify(|x| *x += 1)
