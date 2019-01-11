@@ -1,6 +1,7 @@
 extern crate chrono;
 extern crate failure;
 extern crate osu_api;
+extern crate regex;
 extern crate reqwest;
 extern crate serde;
 extern crate serde_derive;
@@ -44,6 +45,8 @@ enum App {
     RenderRanking(RenderRanking),
     #[structopt(name = "find-scores")]
     FindScores(FindScores),
+    #[structopt(name = "show-beatmap")]
+    ShowBeatmap(ShowBeatmap),
 }
 
 #[derive(Debug, StructOpt)]
@@ -103,6 +106,9 @@ struct FindScores {
     #[structopt(long = "high-ar")]
     high_ar: f64,
 }
+
+#[derive(Debug, StructOpt)]
+struct ShowBeatmap {}
 
 fn reqwest_client() -> Fallible<Client> {
     use reqwest::header;
@@ -765,6 +771,53 @@ fn find_scores(args: &FindScores) -> Fallible<()> {
     Ok(())
 }
 
+fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
+    let beatmaps = osu_api::GetBeatmaps::new(api.key.as_ref())
+        .beatmap_id(beatmap_id)
+        .request_text(&mut api.client)
+        .context("get_beatmaps API failed")?;
+    let beatmaps: Vec<Beatmap> = serde_json::from_str(&beatmaps).context("Broken JSON")?;
+    let beatmap = beatmaps
+        .first()
+        .ok_or_else(|| failure::err_msg("Beatmap not found"))?;
+    let stars = beatmap_stars(beatmap);
+    let approach_rate = f64::from_str(&beatmap.diff_approach)?;
+    let length = i32::from_str(&beatmap.hit_length)?;
+
+    Ok(format!(
+        r#"=HYPERLINK("https://osu.ppy.sh/beatmapsets/{}#fruits/{}","{}")   {}  {}  {}:{:02}"#,
+        &beatmap.beatmapset_id,
+        &beatmap.beatmap_id,
+        beatmap_title(&beatmap),
+        stars,
+        approach_rate,
+        length / 60,
+        length % 60,
+    ))
+}
+
+fn show_beatmap(_args: &ShowBeatmap) -> Fallible<()> {
+    use std::io::BufRead;
+    let mut api = api_client()?;
+    let stdin = std::io::stdin();
+    let stdin = stdin.lock();
+    let beatmap_id_matcher = regex::Regex::new(r"fruits/(\d+)").unwrap();
+    for line in stdin.lines() {
+        let line = line?;
+        for beatmap_id in beatmap_id_matcher
+            .captures_iter(&line)
+            .map(|cs| cs.get(1).unwrap().as_str())
+        {
+            println!(
+                "{}",
+                show_beatmap_sub(&mut api, beatmap_id)
+                    .with_context(|_| format!("beatmap id {}", beatmap_id))?
+            );
+        }
+    }
+    Ok(())
+}
+
 fn main() {
     match App::from_args() {
         App::GetMaps(args) => get_maps(&args),
@@ -772,6 +825,7 @@ fn main() {
         App::RenderMaps(args) => render_maps(&args),
         App::RenderRanking(args) => render_ranking(&args),
         App::FindScores(args) => find_scores(&args),
+        App::ShowBeatmap(args) => show_beatmap(&args),
     }
     .unwrap_or_else(|e| {
         for cause in e.iter_chain() {
