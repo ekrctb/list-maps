@@ -471,6 +471,7 @@ function showErrorMessage(text: string) {
 }
 
 const LOCALSTORAGE_PREFIX = 'list-maps/';
+const ENABLE_LOCALSTORAGE_SAVE = false;
 type LocalFileName = 'osu!.db' | 'scores.db';
 interface LocalFile {
     data: Uint8Array;
@@ -603,6 +604,7 @@ async function setLocalFile(name: LocalFileName, file: File): Promise<void> {
                 console.log('file ' + name + ' compressed');
                 const current = localFiles[name];
                 if (current && current.uploadedDate.valueOf() !== uploadedDate.valueOf()) return;
+                if (!ENABLE_LOCALSTORAGE_SAVE) return;
                 try {
                     localStorage.setItem(LOCALSTORAGE_PREFIX + name + '/data', dataStr);
                     localStorage.setItem(LOCALSTORAGE_PREFIX + name + '/uploaded-date', uploadedDate.toISOString());
