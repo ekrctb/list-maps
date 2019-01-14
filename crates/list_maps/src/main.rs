@@ -83,6 +83,8 @@ struct GetScores {
     min_stars: f64,
     #[structopt(long = "cache-expire")]
     cache_expire: Option<DateTime<Utc>>,
+    #[structopt(long = "ranked-date-start")]
+    approved_date_start: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -361,14 +363,26 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
     let mut api = api_client()?;
     let cache = scores_cache()?;
     let mut count = 0;
+    let mut fetch_count = 0;
     each_filtered_map(args.min_stars, |beatmap| {
         count += 1;
+        if let Some(approved_date) = beatmap
+            .approved_date
+            .as_ref()
+            .and_then(|s| data::date_from_str(s.as_ref()).ok())
+        {
+            if let Some(start) = args.approved_date_start {
+                if approved_date < start {
+                    return Ok(());
+                }
+            }
+        }
         let key = cache_key(&beatmap.beatmap_id, &args.game_mode);
         if let Some(value) = cache.get(&key)? {
             let value: ScoreCacheValue =
                 serde_json::from_slice(&value).context("db content malformed")?;
             if match args.cache_expire {
-                Some(dt) => value.update_date < dt,
+                Some(dt) => value.update_date >= dt,
                 None => true,
             } {
                 return Ok(());
@@ -382,6 +396,7 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
                 .request_text(&mut api.client)?;
             Ok(serde_json::from_str(&text).context("malformed JSON")?)
         });
+        fetch_count += 1;
         let len = scores.len();
         cache.set(
             &key,
@@ -396,7 +411,7 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
         Ok(())
     })?;
 
-    println!("{} maps done!", count);
+    println!("{} / {} maps done!", fetch_count, count);
 
     Ok(())
 }
@@ -450,7 +465,11 @@ fn calc_pp(
     }
 }
 
-fn beatmap_summary(beatmap: &Beatmap, scores: &[Box<RawValue>]) -> Fallible<serde_json::Value> {
+fn beatmap_summary(
+    beatmap: &Beatmap,
+    scores: &[Box<RawValue>],
+    update_date: &DateTime<Utc>,
+) -> Fallible<serde_json::Value> {
     use osu_api::data::Mods;
     let mods_mask = Mods::Easy
         | Mods::Hidden
@@ -513,24 +532,25 @@ fn beatmap_summary(beatmap: &Beatmap, scores: &[Box<RawValue>]) -> Fallible<serd
         fc_count
             .get(&(Mods::Hidden | Mods::DoubleTime))
             .unwrap_or(&0),
+        format!("{}", update_date.format("%F")),
     ]))
 }
 
 fn each_filtered_map_with_scores(
     min_stars: f64,
     game_mode: &str,
-    mut f: impl FnMut(&Beatmap, &[Box<RawValue>]) -> Fallible<()>,
+    mut f: impl FnMut(&Beatmap, &[Box<RawValue>], &DateTime<Utc>) -> Fallible<()>,
 ) -> Fallible<u64> {
     let cache = scores_cache()?;
     let mut no_scores = true;
 
     let all_maps = each_filtered_map(min_stars, |beatmap| {
-        let scores = match cache.get(&cache_key(&beatmap.beatmap_id, game_mode))? {
+        let (scores, update_date) = match cache.get(&cache_key(&beatmap.beatmap_id, game_mode))? {
             Some(value) => {
                 no_scores = false;
                 let value: ScoreCacheValue =
                     serde_json::from_slice(&value).context("db content is malformed")?;
-                value.scores
+                (value.scores, value.update_date)
             }
             None => {
                 eprintln!(
@@ -541,7 +561,7 @@ fn each_filtered_map_with_scores(
             }
         };
 
-        f(beatmap, &scores)
+        f(beatmap, &scores, &update_date)
     })?;
 
     if no_scores {
@@ -577,9 +597,11 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
     validate_game_mode_str(&args.game_mode)?;
 
     let mut rows = Vec::new();
-    let all_maps =
-        each_filtered_map_with_scores(args.min_stars, &args.game_mode, |beatmap, scores| {
-            match beatmap_summary(&beatmap, &scores) {
+    let all_maps = each_filtered_map_with_scores(
+        args.min_stars,
+        &args.game_mode,
+        |beatmap, scores, update_date| {
+            match beatmap_summary(&beatmap, &scores, &update_date) {
                 Ok(summary) => {
                     rows.push((beatmap_stars(beatmap), serde_json::to_string(&summary)?));
                 }
@@ -588,7 +610,8 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
                 }
             }
             Ok(())
-        })?;
+        },
+    )?;
 
     rows.sort_by(|x, y| y.0.partial_cmp(&x.0).unwrap());
     output_rows(all_maps, rows.into_iter().map(|t| t.1), &args.out_path)
@@ -683,7 +706,7 @@ fn render_ranking(args: &RenderRanking) -> Fallible<()> {
 
     let mut rows = Vec::new();
     let all_maps =
-        each_filtered_map_with_scores(args.min_stars, &args.game_mode, |beatmap, scores| {
+        each_filtered_map_with_scores(args.min_stars, &args.game_mode, |beatmap, scores, _| {
             if (beatmap.mode == args.game_mode) != args.specific_maps {
                 return Ok(());
             }
@@ -736,7 +759,7 @@ fn find_scores(args: &FindScores) -> Fallible<()> {
     use osu_api::data::Mods;
     // Finding criteria are hardcoded for now.
     // Find high-AR DT ranked FCs.
-    each_filtered_map_with_scores(4.0, "2", |beatmap, scores| {
+    each_filtered_map_with_scores(4.0, "2", |beatmap, scores, _| {
         for (i, score) in scores.iter().enumerate() {
             // only ranked or approved maps
             if beatmap.approved != "1" && beatmap.approved != "2" {

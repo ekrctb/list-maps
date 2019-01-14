@@ -12,7 +12,7 @@ interface JQuery {
 type SummaryRowData =
 [
     number, string, number, string, string, string, number, number, number,
-    number, number, number, number, number, number, number, number, number, number, number
+    number, number, number, number, number, number, number, number, number, number, string
 ];
 const MINIMUM_DATE = new Date(0);
 class SummaryRow {
@@ -38,6 +38,7 @@ class SummaryRow {
     fcHDHR: number;
     fcDT: number;
     fcHDDT: number;
+    update_date: string;
     info: BeatmapInfo | null;
     constructor(private readonly data: SummaryRowData) {
         [
@@ -60,6 +61,7 @@ class SummaryRow {
             this.fcHDHR,
             this.fcDT,
             this.fcHDDT,
+            this.update_date,
         ] = data;
         this.beatmap_id_number = parseInt(this.beatmap_id);
         this.approved_date = new Date(this.approved_date_string.replace(' ', 'T') + '+08:00');
@@ -189,6 +191,7 @@ const sortKeys = [
         x.fcHDHR * 2 + x.fcHR * 1e4 +
         x.fcHD * 2 + x.fcNM -
         x.min_misses,
+    (x: SummaryRow) => x.update_date,
     (x: SummaryRow) => !x.info ? MINIMUM_DATE.valueOf() : x.info.lastPlayed.valueOf()
 ];
 
@@ -442,8 +445,9 @@ function initUnsortedTableRows() {
             row.max_combo.toString(),
             row.approach_rate.toFixed(1),
             row.circle_size.toFixed(1),
-            row.min_misses !== 0 ? (row.min_misses === 1 ? '1 miss' : row.min_misses + ' misses') :
-            [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', '),
+            (row.min_misses !== 0 ? (row.min_misses === 1 ? '1 miss' : row.min_misses + ' misses') :
+                [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', ')),
+            row.update_date,
         beatmapInfoMap.size === 0 ? [] :
             [
                 $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),

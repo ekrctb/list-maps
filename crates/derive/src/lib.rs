@@ -1,4 +1,3 @@
-#![feature(extern_crate_item_prelude)]
 #![allow(clippy::eval_order_dependence)]
 
 extern crate proc_macro;
