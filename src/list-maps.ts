@@ -577,6 +577,7 @@ function reloadLocalFile(name: LocalFileName) {
 }
 
 async function loadFromLocalStorage(name: LocalFileName) {
+    if (!ENABLE_LOCALSTORAGE_SAVE) return;
     const dateStr = localStorage.getItem(LOCALSTORAGE_PREFIX + name + '/uploaded-date');
     if (!dateStr) return;
     const encoded = localStorage.getItem(LOCALSTORAGE_PREFIX + name + '/data')!;
