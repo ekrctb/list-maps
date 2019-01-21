@@ -797,6 +797,8 @@ fn find_scores(args: &FindScores) -> Fallible<()> {
 fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
     let beatmaps = osu_api::GetBeatmaps::new(api.key.as_ref())
         .beatmap_id(beatmap_id)
+        .include_converts("1")
+        .mode("2")
         .request_text(&mut api.client)
         .context("get_beatmaps API failed")?;
     let beatmaps: Vec<Beatmap> = serde_json::from_str(&beatmaps).context("Broken JSON")?;
@@ -808,7 +810,7 @@ fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
     let length = i32::from_str(&beatmap.hit_length)?;
 
     Ok(format!(
-        r#"=HYPERLINK("https://osu.ppy.sh/beatmapsets/{}#fruits/{}","{}")   {}  {}  {}:{:02}"#,
+        "=HYPERLINK(\"https://osu.ppy.sh/beatmapsets/{}#fruits/{}\",\"{}\")\t{}\t{}\t{}:{:02}",
         &beatmap.beatmapset_id,
         &beatmap.beatmap_id,
         beatmap_title(&beatmap),
