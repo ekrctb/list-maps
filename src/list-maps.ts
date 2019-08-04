@@ -429,11 +429,14 @@ namespace ListMaps {
                     $('<i>').addClass(mode_icons[row.mode]),
                     $('<a>')
                         .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
+                        .attr('target', '_blank')
                         .text(row.display_string),
                     row.beatmap_id_number > 0 ? $('<div class="float-right">').append([
                         $('<a><i class="fa fa-picture-o">')
+                            .attr('target', '_blank')
                             .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
                         $('<a><i class="fa fa-download">')
+                            .attr('target', '_blank')
                             .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`),
                         $('<a><i class="fa fa-cloud-download">')
                             .attr('href', `osu://dl/${row.beatmapset_id}`)
