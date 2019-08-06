@@ -2,10 +2,9 @@
 
 use chrono::prelude::*;
 use failure::Fallible;
-use num_enum::{CustomTryInto, IntoPrimitive};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde_derive::{Deserialize, Serialize};
-use std::borrow::Cow;
-use std::str::FromStr;
+use std::{borrow::Cow, convert::TryInto, str::FromStr};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Beatmap<'a> {
@@ -72,7 +71,9 @@ pub fn date_from_str(s: &str) -> Fallible<DateTime<Utc>> {
     Ok(DateTime::from_utc(dt, Utc))
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, CustomTryInto, IntoPrimitive)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, IntoPrimitive, TryFromPrimitive,
+)]
 #[repr(i8)]
 pub enum ApprovalStatus {
     Graveyard = -2,
@@ -85,12 +86,12 @@ pub enum ApprovalStatus {
 }
 
 pub fn approval_status_from_str(s: &str) -> Fallible<ApprovalStatus> {
-    i8::from_str(s)?
-        .try_into_ApprovalStatus()
-        .map_err(failure::err_msg)
+    i8::from_str(s)?.try_into().map_err(failure::err_msg)
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, CustomTryInto, IntoPrimitive)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, IntoPrimitive, TryFromPrimitive,
+)]
 #[repr(u8)]
 pub enum GameMode {
     Standard = 0,
@@ -100,9 +101,7 @@ pub enum GameMode {
 }
 
 pub fn game_mode_from_str(s: &str) -> Fallible<GameMode> {
-    u8::from_str(s)?
-        .try_into_GameMode()
-        .map_err(failure::err_msg)
+    u8::from_str(s)?.try_into().map_err(failure::err_msg)
 }
 
 pub fn game_mode_to_string(mode: GameMode) -> String {

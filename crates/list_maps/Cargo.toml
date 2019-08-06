@@ -5,13 +5,13 @@ authors = ["ekrctb <ekrctb@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-failure = "0.1.3"
+failure = "0.1.5"
 osu_api = { path = "../osu_api" }
-structopt = "0.2.13"
-chrono = "0.4.6"
-reqwest = "0.9.5"
-serde = "1.0.80"
-serde_derive = "1.0.80"
-serde_json = { version = "1.0.33", features = ["raw_value"] }
-sled = "0.16"
-regex = "1.1.0"
+structopt = "0.2.18"
+chrono = "0.4.7"
+reqwest = "0.9.19"
+serde = "1.0.98"
+serde_derive = "1.0.98"
+serde_json = { version = "1.0.40", features = ["raw_value"] }
+sled = "0.24.1"
+regex = "1.2.1"

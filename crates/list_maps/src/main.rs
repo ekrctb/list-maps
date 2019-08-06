@@ -185,7 +185,7 @@ fn request_all_ranked_maps(
     loop {
         let since = last_date - chrono::Duration::seconds(1);
         let list: Vec<Box<RawValue>> = retry_forever("Get beatmaps", || {
-            let text = osu_api::GetBeatmaps::new(api.key.as_ref())
+            let text = osu_api::GetBeatmaps::new(&api.key)
                 .since(since)
                 .mode(game_mode)
                 .include_converts(include_converts.clone())
@@ -249,8 +249,8 @@ fn request_all_ranked_maps(
     }
 }
 
-fn beatmaps_cache() -> Fallible<sled::Tree> {
-    Ok(sled::Tree::start_default("db/beatmaps")?)
+fn beatmaps_cache() -> Fallible<sled::Db> {
+    Ok(sled::Db::start_default("db/beatmaps")?)
 }
 
 fn get_maps(args: &GetMaps) -> Fallible<()> {
@@ -304,8 +304,8 @@ fn get_maps(args: &GetMaps) -> Fallible<()> {
     Ok(())
 }
 
-fn scores_cache() -> Fallible<sled::Tree> {
-    Ok(sled::Tree::start_default("db/scores")?)
+fn scores_cache() -> Fallible<sled::Db> {
+    Ok(sled::Db::start_default("db/scores")?)
 }
 
 fn beatmap_stars(beatmap: &Beatmap) -> f64 {
@@ -795,7 +795,7 @@ fn find_scores(args: &FindScores) -> Fallible<()> {
 }
 
 fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
-    let beatmaps = osu_api::GetBeatmaps::new(api.key.as_ref())
+    let beatmaps = osu_api::GetBeatmaps::new(&api.key)
         .beatmap_id(beatmap_id)
         .request_text(&mut api.client)
         .context("get_beatmaps API failed")?;

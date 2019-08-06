@@ -14,8 +14,7 @@ pub mod data;
 use chrono::prelude::*;
 use osu_api_internal_derive::Api;
 use reqwest::Client;
-use serde::Serialize;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 fn make_url(name: &str) -> String {
     format!("https://osu.ppy.sh/api/{}", name)
