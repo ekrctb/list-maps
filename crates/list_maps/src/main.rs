@@ -85,6 +85,8 @@ struct GetScores {
     cache_expire: Option<DateTime<Utc>>,
     #[structopt(long = "ranked-date-start")]
     approved_date_start: Option<DateTime<Utc>>,
+    #[structopt(long = "max-num-scores")]
+    max_num_scores: Option<i32>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -360,6 +362,7 @@ fn validate_game_mode_str(game_mode: &str) -> Fallible<()> {
 
 fn get_scores(args: &GetScores) -> Fallible<()> {
     validate_game_mode_str(&args.game_mode)?;
+    let max_num_scores = args.max_num_scores.unwrap_or(1);
     let mut api = api_client()?;
     let cache = scores_cache()?;
     let mut count = 0;
@@ -392,7 +395,7 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
         let scores: Vec<Box<RawValue>> = retry_forever("get_scores", || {
             let text = osu_api::GetScores::new(api.key.clone(), beatmap.beatmap_id.clone())
                 .mode(args.game_mode.clone())
-                .limit(100)
+                .limit(max_num_scores)
                 .request_text(&mut api.client)?;
             Ok(serde_json::from_str(&text).context("malformed JSON")?)
         });
