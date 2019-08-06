@@ -1,21 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title>Catch the beat beatmap list</title>
-  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
-  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"
+    integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
   <link href="https://fonts.googleapis.com/css?family=Lato:400,700,900i" rel="stylesheet">
   <link href="index.css" rel="stylesheet">
-  <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>  
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js"
+    integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh"
+    crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js"
+    integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ"
+    crossorigin="anonymous"></script>
   <script src="dist/lib/encoding.js"></script>
   <script src="dist/list-maps.js"></script>
   <style>
   </style>
 </head>
+
 <body>
   <div class="header container-fluid">
     <div id="alerts"></div>
@@ -52,7 +61,7 @@
           <div class="col field">
             <label for="filter-search-query">Search query</label>
             <input type="text" class="form-control" id="filter-search-query"
-                    placeholder="queries like ar=9 are supported">
+              placeholder="queries like ar=9 are supported">
           </div>
           <div class="col field">
             <label for="filter-fc-level">FC level</label>
@@ -112,15 +121,15 @@
             </ul>
           </div>
           <div class="col">
-              <ul>
-                <li><i class="fa fa-pencil"></i>Last update: <span id="last-update-time"></span></li>
-                <li><i class="fa fa-list"></i><a href="./ranking.html">Converted map pp ranking</a></li>
-              </ul>
-            </div>
+            <ul>
+              <li><i class="fa fa-pencil"></i>Last update: <span id="last-update-time"></span></li>
+              <li><i class="fa fa-list"></i><a href="./ranking.html">Converted map pp ranking</a></li>
+            </ul>
+          </div>
           <div class="col">
             <i class="fa fa-search"></i>
-              Search query expressions:<br>
-              <code>status=r mode=o stars&lt;=5 pp&gt;=200 length&lt;=200 combo&lt;1000 ar&gt;9 cs&lt;5 played&lt;=10 unplayed!= rank=S date&gt;7</code>
+            Search query expressions:<br>
+            <code>status=r mode=o stars&lt;=5 pp&gt;=200 length&lt;=200 combo&lt;1000 ar&gt;9 cs&lt;5 played&lt;=10 unplayed!= rank=S date&gt;7</code>
           </div>
         </div>
       </div>
@@ -129,22 +138,25 @@
   <div class="main">
     <i class="loader fa fa-spinner fa-pulse fa-3x" id="summary-table-loader"></i>
     <table id="summary-table" class="table table-sm table-hover table-bordered table-striped table-sortable">
-      <thead><tr>
-        <th class="desc-first">Date</th>
-        <th>Map</th>
-        <th class="sorted descending desc-first">Stars</th>
-        <th class="desc-first">pp</th>
-        <th>Length</th>
-        <th>Combo</th>
-        <th>AR</th>
-        <th>CS</th>
-        <th class="desc-first">Misses / FCs</th>
-        <th class="desc-first">Update</th>
-        <th class="desc-first">Local data</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th class="desc-first">Date</th>
+          <th>Map</th>
+          <th class="sorted descending desc-first">Stars</th>
+          <th class="desc-first">pp</th>
+          <th>Length</th>
+          <th>Combo</th>
+          <th>AR</th>
+          <th>CS</th>
+          <th class="desc-first">Misses / FCs</th>
+          <th class="desc-first">Update</th>
+          <th class="desc-first">Local data</th>
+        </tr>
+      </thead>
       <tbody>
       </tbody>
     </table>
   </div>
 </body>
+
 </html>

@@ -9,7 +9,6 @@
         "types": [
             "node",
             "jquery",
-            "pako"
         ],
         "sourceMap": true,
         "strict": true,

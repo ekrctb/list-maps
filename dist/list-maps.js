@@ -426,7 +426,6 @@ var ListMaps;
             .append('<a class="close" data-dismiss="alert"><span>&times;'));
     }
     const LOCALSTORAGE_PREFIX = 'list-maps/';
-    const ENABLE_LOCALSTORAGE_SAVE = false;
     const localFiles = {};
     /*
     function dataURItoUInt8Array(dataURI: string) {
@@ -449,67 +448,6 @@ var ListMaps;
         registeredCallbackMap.set(id, callback);
         return id;
     }
-    function newWorker() {
-        return new Worker('dist/list-maps-worker.js');
-    }
-    function runWorker(message, using) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise(resolve => {
-                const worker = using || newWorker();
-                message.id = registerCallback(resolve);
-                worker.postMessage(message);
-                worker.addEventListener('message', (event) => {
-                    const data = event.data;
-                    if (data.type === 'callback' && typeof (data.id) === 'number') {
-                        const callback = registeredCallbackMap.get(data.id);
-                        if (callback) {
-                            registeredCallbackMap.delete(data.id);
-                            callback(data);
-                        }
-                    }
-                }, false);
-            });
-        });
-    }
-    function compressBufferToString(buffer) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const compressed = (yield runWorker({
-                type: 'compress',
-                data: new Uint8Array(buffer)
-            })).data;
-            const chars = new Array(Math.floor(compressed.length / 2));
-            for (let i = 0; i < chars.length; i += 1) {
-                const code = (compressed[i * 2 + 0] & 0xff) << 8 | (compressed[i * 2 + 1] & 0xff);
-                chars[i] = String.fromCharCode(code);
-            }
-            let res = compressed.length % 2 ? '1' : '0';
-            res += chars.join('');
-            if (compressed.length % 2 !== 0)
-                res += String.fromCharCode((compressed[compressed.length - 1] & 0xff) << 8);
-            return res;
-        });
-    }
-    ListMaps.compressBufferToString = compressBufferToString;
-    function decompressBufferFromString(str) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const parity = str[0] === '1' ? 1 : 0;
-            const len = str.length - 1 - parity;
-            const array = new Uint8Array(len * 2 + parity);
-            for (let i = 0; i < len; i += 1) {
-                const code = str.charCodeAt(i + 1);
-                array[i * 2 + 0] = code >> 8;
-                array[i * 2 + 1] = code & 0xff;
-            }
-            if (parity !== 0)
-                array[len * 2] = str.charCodeAt(len + 1) >> 8;
-            const decompressed = (yield runWorker({
-                type: 'decompress',
-                data: array
-            })).data;
-            return decompressed;
-        });
-    }
-    ListMaps.decompressBufferFromString = decompressBufferFromString;
     function reloadLocalFile(name) {
         const f = localFiles[name];
         if (name === 'osu!.db')
@@ -524,27 +462,11 @@ var ListMaps;
         else {
         }
     }
-    function loadFromLocalStorage(name) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!ENABLE_LOCALSTORAGE_SAVE)
-                return;
-            const dateStr = localStorage.getItem(LOCALSTORAGE_PREFIX + name + '/uploaded-date');
-            if (!dateStr)
-                return;
-            const encoded = localStorage.getItem(LOCALSTORAGE_PREFIX + name + '/data');
-            const data = yield decompressBufferFromString(encoded);
-            console.log('file ' + name + ' loaded from localStorage');
-            localFiles[name] = {
-                data: data,
-                uploadedDate: new Date(dateStr)
-            };
-        });
-    }
     function setLocalFile(name, file) {
         return __awaiter(this, void 0, void 0, function* () {
             return new Promise(resolve => {
                 const fr = new FileReader();
-                fr.onload = (event) => {
+                fr.onload = () => {
                     console.log('file ' + name + ' loaded');
                     const buffer = fr.result;
                     const uploadedDate = new Date();
@@ -553,22 +475,6 @@ var ListMaps;
                         uploadedDate: uploadedDate,
                     };
                     reloadLocalFile(name);
-                    compressBufferToString(buffer).then(dataStr => {
-                        console.log('file ' + name + ' compressed');
-                        const current = localFiles[name];
-                        if (current && current.uploadedDate.valueOf() !== uploadedDate.valueOf())
-                            return;
-                        if (!ENABLE_LOCALSTORAGE_SAVE)
-                            return;
-                        try {
-                            localStorage.setItem(LOCALSTORAGE_PREFIX + name + '/data', dataStr);
-                            localStorage.setItem(LOCALSTORAGE_PREFIX + name + '/uploaded-date', uploadedDate.toISOString());
-                            console.log('file ' + name + ' saved to localStorage');
-                        }
-                        catch (e) {
-                            console.error('localStorage error: ', e);
-                        }
-                    });
                     return resolve();
                 };
                 fr.readAsArrayBuffer(file);
@@ -774,12 +680,6 @@ var ListMaps;
         });
     }
     function main() {
-        Promise.all(['osu!.db', 'scores.db']
-            .map(name => loadFromLocalStorage(name)
-            .then(() => reloadLocalFile(name)))).then(() => {
-            if (initUnsortedTableRows())
-                drawTableForCurrentFiltering();
-        });
         setQueryAccordingToHash();
         window.addEventListener('hashchange', () => {
             setQueryAccordingToHash();

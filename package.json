@@ -4,9 +4,8 @@
   "description": "",
   "dependencies": {},
   "devDependencies": {
-    "@types/jquery": "^3.2.15",
+    "@types/jquery": "^3.3.31",
     "@types/node": "^8.0.46",
-    "@types/pako": "^1.0.0",
     "typescript": "^2.5.3"
   },
   "scripts": {
