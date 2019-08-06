@@ -163,8 +163,8 @@ function drawTableForCurrentFiltering() {
     const filter_search_query = new SearchQuery($('#filter-search-query').val());
     const filter_fc_level = parseInt($('#filter-fc-level').val());
     const filter_local_data = parseInt($('#filter-local-data').val());
-    const index_start = parseInt($('#result-index-start').text());
-    const count_limit = parseInt($('#result-count-limit').text());
+    const index_start = parseInt($('#result-index-start').val()) || 0;
+    const count_limit = parseInt($('#result-count-limit').val()) || 100;
     const get_fc_level = (row) => {
         if (row.min_misses !== 0)
             return 1;
@@ -272,8 +272,9 @@ function drawTableForCurrentFiltering() {
     $('#num-results').text(indices.length === 1 ? '1 map' : indices.length.toString() + ' maps');
     const indexStart = Math.min(Math.max(index_start, 0), indices.length);
     const indexEnd = Math.min(Math.max(index_start + count_limit, 0), indices.length);
-    $('#result-index-start').text(indexStart.toString());
+    $('#result-index-start').val(indexStart.toString());
     $('#result-index-end').text(indexEnd.toString());
+    $('#result-count-limit').val(count_limit.toString());
     $('#hash-link-to-the-current-table').attr('href', currentHashLink);
     $('#page-prev').toggleClass('disabled', indexStart === 0);
     $('#page-next').toggleClass('disabled', indexEnd === indices.length);
@@ -332,8 +333,8 @@ function setQueryAccordingToHash() {
     $('#filter-search-query').val(obj.q);
     $('#filter-fc-level').val(parseInt(obj.l));
     $('#filter-local-data').val(parseInt(obj.d));
-    $('#result-index-start').text(parseInt(obj.i));
-    $('#result-count-limit').text(parseInt(obj.n));
+    $('#result-index-start').val(parseInt(obj.i));
+    $('#result-count-limit').val(parseInt(obj.n));
     currentSortOrder = simplifySortOrder(obj.o.split('.').map(x => parseInt(x) || 0), summaryOrderConfig);
     setTableHeadSortingMark();
 }
@@ -672,7 +673,8 @@ function main() {
         const onChange = () => {
             drawTableForCurrentFiltering();
         };
-        for (const id of ['filter-approved-status', 'filter-mode', 'filter-fc-level', 'filter-local-data'])
+        for (const id of ['filter-approved-status', 'filter-mode', 'filter-fc-level', 'filter-local-data',
+            'result-index-start', 'result-count-limit'])
             $(`#${id}`).on('change', onChange);
         for (const id of ['filter-search-query'])
             $(`#${id}`).on('input', onChange);
@@ -707,10 +709,10 @@ function main() {
             elem.value = '';
         }));
         $('#page-prev > a, #page-next > a').click(e => {
-            const start = parseInt($('#result-index-start').text());
-            const count = parseInt($('#result-count-limit').text());
+            const start = parseInt($('#result-index-start').val());
+            const count = parseInt($('#result-count-limit').val());
             const isPrev = e.target.parentElement.id === 'page-prev';
-            $('#result-index-start').text(Math.max(0, isPrev ? start - count : start + count).toString());
+            $('#result-index-start').val(Math.max(0, isPrev ? start - count : start + count).toString());
             drawTableForCurrentFiltering();
             if (!isPrev)
                 $('.main').get()[0].scroll(0, 0);
