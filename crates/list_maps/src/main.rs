@@ -471,12 +471,12 @@ fn beatmap_summary(
     update_date: &DateTime<Utc>,
 ) -> Fallible<serde_json::Value> {
     use osu_api::data::Mods;
-    let mods_mask = Mods::Easy
-        | Mods::Hidden
-        | Mods::HardRock
-        | Mods::DoubleTime
-        | Mods::HalfTime
-        | Mods::Flashlight;
+    let mods_mask = Mods::EASY
+        | Mods::HIDDEN
+        | Mods::HARD_ROCK
+        | Mods::DOUBLE_TIME
+        | Mods::HALF_TIME
+        | Mods::FLASHLIGHT;
     let mut fc_count = std::collections::HashMap::new();
     let mut min_misses = 999;
     for (i, score) in scores.iter().enumerate() {
@@ -491,7 +491,7 @@ fn beatmap_summary(
             ),
         };
         let mods = data::mods_from_str(&score.enabled_mods)?;
-        if !mods.contains(Mods::HalfTime) {
+        if !mods.contains(Mods::HALF_TIME) {
             min_misses = min_misses.min(i32::from_str(&score.countmiss)?);
         }
         if u8::from_str(&score.perfect)? == 1 {
@@ -525,12 +525,14 @@ fn beatmap_summary(
         f64::from_str(&beatmap.diff_size)?,
         min_misses,
         fc_count.get(&Mods::empty()).unwrap_or(&0),
-        fc_count.get(&Mods::Hidden).unwrap_or(&0),
-        fc_count.get(&Mods::HardRock).unwrap_or(&0),
-        fc_count.get(&(Mods::Hidden | Mods::HardRock)).unwrap_or(&0),
-        fc_count.get(&Mods::DoubleTime).unwrap_or(&0),
+        fc_count.get(&Mods::HIDDEN).unwrap_or(&0),
+        fc_count.get(&Mods::HARD_ROCK).unwrap_or(&0),
         fc_count
-            .get(&(Mods::Hidden | Mods::DoubleTime))
+            .get(&(Mods::HIDDEN | Mods::HARD_ROCK))
+            .unwrap_or(&0),
+        fc_count.get(&Mods::DOUBLE_TIME).unwrap_or(&0),
+        fc_count
+            .get(&(Mods::HIDDEN | Mods::DOUBLE_TIME))
             .unwrap_or(&0),
         format!("{}", update_date.format("%F")),
     ]))
@@ -629,33 +631,33 @@ fn calc_accuracy(score: &Score) -> Fallible<f64> {
 fn mod_names(mods: data::Mods) -> Vec<&'static str> {
     use osu_api::data::Mods;
     let mut names = Vec::new();
-    if mods.contains(Mods::NoFail) {
+    if mods.contains(Mods::NO_FAIL) {
         names.push("NF");
     }
-    if mods.contains(Mods::Easy) {
+    if mods.contains(Mods::EASY) {
         names.push("EZ");
     }
-    if mods.contains(Mods::Hidden) {
+    if mods.contains(Mods::HIDDEN) {
         names.push("HD");
     }
-    if mods.contains(Mods::DoubleTime) {
-        names.push(if mods.contains(Mods::Nightcore) {
+    if mods.contains(Mods::DOUBLE_TIME) {
+        names.push(if mods.contains(Mods::NIGHTCORE) {
             "NC"
         } else {
             "DT"
         });
     }
-    if mods.contains(Mods::HalfTime) {
+    if mods.contains(Mods::HALF_TIME) {
         names.push("HT");
     }
-    if mods.contains(Mods::HardRock) {
+    if mods.contains(Mods::HARD_ROCK) {
         names.push("HR");
     }
-    if mods.contains(Mods::Flashlight) {
+    if mods.contains(Mods::FLASHLIGHT) {
         names.push("FL");
     }
-    if mods.contains(Mods::SuddenDeath) {
-        names.push(if mods.contains(Mods::Perfect) {
+    if mods.contains(Mods::SUDDEN_DEATH) {
+        names.push(if mods.contains(Mods::PERFECT) {
             "PF"
         } else {
             "SD"
@@ -770,15 +772,15 @@ fn find_scores(args: &FindScores) -> Fallible<()> {
             let score: Score = serde_json::from_str(score.get())?;
             let mods = data::mods_from_str(&score.enabled_mods)?;
             if score.perfect != "1"
-                || mods.contains(Mods::HalfTime)
-                || !mods.contains(Mods::DoubleTime)
+                || mods.contains(Mods::HALF_TIME)
+                || !mods.contains(Mods::DOUBLE_TIME)
             {
                 continue;
             }
             let ar = 10f64.min(
-                ar * if mods.contains(Mods::Easy) {
+                ar * if mods.contains(Mods::EASY) {
                     0.5
-                } else if mods.contains(Mods::HardRock) {
+                } else if mods.contains(Mods::HARD_ROCK) {
                     1.4
                 } else {
                     1.0

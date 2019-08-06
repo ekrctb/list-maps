@@ -230,36 +230,36 @@ pub struct Score<'a> {
 
 bitflags::bitflags! {
     pub struct Mods: u32 {
-        const NoFail         = 1;
-        const Easy           = 2;
-        const TouchDevice    = 4;
-        const Hidden         = 8;
-        const HardRock       = 16;
-        const SuddenDeath    = 32;
-        const DoubleTime     = 64;
-        const Relax          = 128;
-        const HalfTime       = 256;
-        const Nightcore      = 512;
-        const Flashlight     = 1024;
-        const Autoplay       = 2048;
-        const SpunOut        = 4096;
-        const Autopilot      = 8192;
-        const Perfect        = 16384;
-        const Key4           = 32768;
-        const Key5           = 65536;
-        const Key6           = 131072;
-        const Key7           = 262144;
-        const Key8           = 524288;
-        const FadeIn         = 1048576;
-        const Random         = 2097152;
-        const Cinema         = 4194304;
-        const Target         = 8388608;
-        const Key9           = 16777216;
-        const KeyCoop        = 33554432;
-        const Key1           = 67108864;
-        const Key3           = 134217728;
-        const Key2           = 268435456;
-        const ScoreV2        = 536870912;
+        const NO_FAIL      = 1;
+        const EASY         = 2;
+        const TOUCH_DEVICE = 4;
+        const HIDDEN       = 8;
+        const HARD_ROCK    = 16;
+        const SUDDEN_DEATH = 32;
+        const DOUBLE_TIME  = 64;
+        const RELAX        = 128;
+        const HALF_TIME    = 256;
+        const NIGHTCORE    = 512;
+        const FLASHLIGHT   = 1024;
+        const AUTOPLAY     = 2048;
+        const SPUN_OUT     = 4096;
+        const AUTOPILOT    = 8192;
+        const PERFECT      = 16384;
+        const KEY4         = 32768;
+        const KEY5         = 65536;
+        const KEY6         = 131072;
+        const KEY7         = 262144;
+        const KEY8         = 524288;
+        const FADE_IN      = 1048576;
+        const RANDOM       = 2097152;
+        const CINEMA       = 4194304;
+        const TARGET       = 8388608;
+        const KEY9         = 16777216;
+        const KEY_COOP     = 33554432;
+        const KEY1         = 67108864;
+        const KEY3         = 134217728;
+        const KEY2         = 268435456;
+        const SCORE_V2     = 536870912;
     }
 }
 
