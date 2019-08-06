@@ -425,60 +425,32 @@ var ListMaps;
             .text(text)
             .append('<a class="close" data-dismiss="alert"><span>&times;'));
     }
-    const LOCALSTORAGE_PREFIX = 'list-maps/';
-    const localFiles = {};
-    /*
-    function dataURItoUInt8Array(dataURI: string) {
-        const base64 = dataURI.split(',')[1];
-        const str = atob(base64);
-        const len = str.length;
-        const array = new Uint8Array(len);
-        for (let i = 0; i < len; ++ i) {
-            array[i] = str.charCodeAt(i);
-        }
-        return array;
-    }
-    */
-    const registeredCallbackMap = new Map();
-    function registerCallback(callback) {
-        let id;
-        do
-            id = Math.random();
-        while (registeredCallbackMap.has(id));
-        registeredCallbackMap.set(id, callback);
-        return id;
-    }
-    function reloadLocalFile(name) {
-        const f = localFiles[name];
-        if (name === 'osu!.db')
-            $('#filter-local-data').prop('disabled', f === undefined);
-        $(name === 'osu!.db' ? '#current-osudb-file' : '#current-scoresdb-file')
-            .text(!f ? 'No data' : formatDate(f.uploadedDate));
-        if (!f)
-            return;
-        if (name === 'osu!.db') {
-            loadOsuDB(f.data.buffer, f.uploadedDate);
-        }
-        else {
+    function setOsuDBData(name, data) {
+        $('#filter-local-data').prop('disabled', data === null);
+        if (data) {
+            const time = performance.now();
+            loadOsuDB(data, new Date());
+            console.log('osu!.db loaded in', performance.now() - time, 'ms');
         }
     }
-    function setLocalFile(name, file) {
+    function readFileToArrayBuffer(file) {
+        return new Promise(resolve => {
+            const fr = new FileReader();
+            fr.onload = () => {
+                console.log('file ' + file.name + ' loaded');
+                return resolve(fr.result);
+            };
+            fr.readAsArrayBuffer(file);
+        });
+    }
+    function loadLocalFile(name, file) {
         return __awaiter(this, void 0, void 0, function* () {
-            return new Promise(resolve => {
-                const fr = new FileReader();
-                fr.onload = () => {
-                    console.log('file ' + name + ' loaded');
-                    const buffer = fr.result;
-                    const uploadedDate = new Date();
-                    localFiles[name] = {
-                        data: new Uint8Array(buffer),
-                        uploadedDate: uploadedDate,
-                    };
-                    reloadLocalFile(name);
-                    return resolve();
-                };
-                fr.readAsArrayBuffer(file);
-            });
+            const data = yield readFileToArrayBuffer(file);
+            switch (name) {
+                case 'osu!.db':
+                    setOsuDBData(name, data);
+                    break;
+            }
         });
     }
     class SerializationReader {
@@ -647,7 +619,7 @@ var ListMaps;
     }
     const beatmapInfoMap = new Map();
     let beatmapInfoMapVersion = MINIMUM_DATE;
-    function loadOsuDB(buffer, version) {
+    function loadOsuDB(buffer, timestamp) {
         beatmapInfoMap.clear();
         const sr = new SerializationReader(buffer);
         sr.skip(4 + 4 + 1 + 8);
@@ -658,7 +630,7 @@ var ListMaps;
             if (beatmap.beatmapId > 0)
                 beatmapInfoMap.set(beatmap.beatmapId, beatmap);
         }
-        beatmapInfoMapVersion = version;
+        beatmapInfoMapVersion = timestamp;
     }
     function initTable(sortKeys, orderConfig, onSortOrderChanged) {
         const thList = $('#summary-table > thead > tr > th');
@@ -714,13 +686,10 @@ var ListMaps;
                 const file = elem.files[i];
                 const name = file.name;
                 if (name.indexOf('osu!.db') !== -1) {
-                    yield setLocalFile('osu!.db', file);
-                }
-                else if (name.indexOf('scores.db') !== -1) {
-                    yield setLocalFile('scores.db', file);
+                    yield loadLocalFile('osu!.db', file);
                 }
                 else {
-                    showErrorMessage(`Invalid file ${name}: Please select osu!.db or scores.db`);
+                    showErrorMessage(`Invalid file ${name}: Please select osu!.db`);
                     continue;
                 }
                 if (initUnsortedTableRows())

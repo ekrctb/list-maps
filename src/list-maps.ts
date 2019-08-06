@@ -1,14 +1,4 @@
-
 namespace ListMaps {
-
-    interface JQuery {
-        tablesort(): void;
-        data(key: 'sortBy', keyFunc: (
-            th: HTMLTableHeaderCellElement,
-            td: HTMLTableDataCellElement,
-            tablesort: any) => void): this;
-    }
-
     type SummaryRowData =
         [
             number, string, number, string, string, string, number, number, number,
@@ -473,70 +463,35 @@ namespace ListMaps {
                 .append('<a class="close" data-dismiss="alert"><span>&times;'));
     }
 
-    const LOCALSTORAGE_PREFIX = 'list-maps/';
-    type LocalFileName = 'osu!.db' | 'scores.db';
-    interface LocalFile {
-        data: Uint8Array;
-        uploadedDate: Date;
-    }
-    const localFiles: {
-        ['osu!.db']?: LocalFile,
-        ['scores.db']?: LocalFile;
-    } = {};
+    type LocalFileName = 'osu!.db';
 
-    /*
-    function dataURItoUInt8Array(dataURI: string) {
-        const base64 = dataURI.split(',')[1];
-        const str = atob(base64);
-        const len = str.length;
-        const array = new Uint8Array(len);
-        for (let i = 0; i < len; ++ i) {
-            array[i] = str.charCodeAt(i);
-        }
-        return array;
-    }
-    */
-
-    const registeredCallbackMap = new Map<number, (data: any) => any>();
-    function registerCallback(callback: (data: any) => any): number {
-        let id;
-        do
-            id = Math.random();
-        while (registeredCallbackMap.has(id));
-        registeredCallbackMap.set(id, callback);
-        return id;
-    }
-
-    function reloadLocalFile(name: LocalFileName) {
-        const f = localFiles[name];
-        if (name === 'osu!.db')
-            $('#filter-local-data').prop('disabled', f === undefined);
-        $(name === 'osu!.db' ? '#current-osudb-file' : '#current-scoresdb-file')
-            .text(!f ? 'No data' : formatDate(f.uploadedDate));
-        if (!f) return;
-        if (name === 'osu!.db') {
-            loadOsuDB(f.data.buffer, f.uploadedDate);
-        } else {
-
+    function setOsuDBData(name: LocalFileName, data: ArrayBuffer | null) {
+        $('#filter-local-data').prop('disabled', data === null);
+        if (data) {
+            const time = performance.now();
+            loadOsuDB(data, new Date());
+            console.log('osu!.db loaded in', performance.now() - time, 'ms');
         }
     }
 
-    async function setLocalFile(name: LocalFileName, file: File): Promise<void> {
-        return new Promise<void>(resolve => {
+    function readFileToArrayBuffer(file: File) {
+        return new Promise<ArrayBuffer>(resolve => {
             const fr = new FileReader();
             fr.onload = () => {
-                console.log('file ' + name + ' loaded');
-                const buffer = fr.result as ArrayBuffer;
-                const uploadedDate = new Date();
-                localFiles[name] = {
-                    data: new Uint8Array(buffer),
-                    uploadedDate: uploadedDate,
-                };
-                reloadLocalFile(name);
-                return resolve();
+                console.log('file ' + file.name + ' loaded');
+                return resolve(fr.result as ArrayBuffer);
             };
             fr.readAsArrayBuffer(file);
         });
+    }
+
+    async function loadLocalFile(name: LocalFileName, file: File) {
+        const data = await readFileToArrayBuffer(file);
+        switch (name) {
+            case 'osu!.db':
+                setOsuDBData(name, data);
+                break;
+        }
     }
 
     class SerializationReader {
@@ -737,7 +692,7 @@ namespace ListMaps {
     const beatmapInfoMap = new Map<number, BeatmapInfo>();
     let beatmapInfoMapVersion = MINIMUM_DATE;
 
-    function loadOsuDB(buffer: ArrayBuffer, version: Date) {
+    function loadOsuDB(buffer: ArrayBuffer, timestamp: Date) {
         beatmapInfoMap.clear();
         const sr = new SerializationReader(buffer);
         sr.skip(4 + 4 + 1 + 8);
@@ -750,7 +705,7 @@ namespace ListMaps {
                 beatmapInfoMap.set(beatmap.beatmapId, beatmap);
         }
 
-        beatmapInfoMapVersion = version;
+        beatmapInfoMapVersion = timestamp;
     }
 
     function initTable(sortKeys: {}[], orderConfig: [number[], number], onSortOrderChanged: () => void) {
@@ -808,11 +763,9 @@ namespace ListMaps {
                 const file = elem.files[i];
                 const name = file.name;
                 if (name.indexOf('osu!.db') !== -1) {
-                    await setLocalFile('osu!.db', file);
-                } else if (name.indexOf('scores.db') !== -1) {
-                    await setLocalFile('scores.db', file);
+                    await loadLocalFile('osu!.db', file);
                 } else {
-                    showErrorMessage(`Invalid file ${name}: Please select osu!.db or scores.db`);
+                    showErrorMessage(`Invalid file ${name}: Please select osu!.db`);
                     continue;
                 }
                 if (initUnsortedTableRows())
