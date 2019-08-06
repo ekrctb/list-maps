@@ -23,6 +23,19 @@
   <script src="dist/lib/encoding.js"></script>
   <script src="dist/list-maps.js"></script>
   <style>
+    td {
+      white-space: nowrap;
+    }
+
+    .map-cell {
+      display: flex;
+    }
+
+    .map-cell>div:first-child {
+      flex-grow: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   </style>
 </head>
 
@@ -132,20 +145,21 @@
   </div>
   <div class="main">
     <i class="loader fa fa-spinner fa-pulse fa-3x" id="summary-table-loader"></i>
-    <table id="summary-table" class="table table-sm table-hover table-bordered table-striped table-sortable">
+    <table id="summary-table" class="table table-sm table-hover table-bordered table-striped table-sortable"
+      style="table-layout: fixed">
       <thead>
         <tr>
-          <th class="desc-first">Date</th>
+          <th class="desc-first" style="width: 8em">Date</th>
           <th>Map</th>
-          <th class="sorted descending desc-first">Stars</th>
-          <th class="desc-first">pp</th>
-          <th>Length</th>
-          <th>Combo</th>
-          <th>AR</th>
-          <th>CS</th>
-          <th class="desc-first">Misses / FCs</th>
-          <th class="desc-first">Update</th>
-          <th class="desc-first">Local data</th>
+          <th class="sorted descending desc-first" style="width: 3em">Stars</th>
+          <th class="desc-first" style="width: 3.5em">pp</th>
+          <th style="width: 3.5em">Length</th>
+          <th style="width: 3.5em">Combo</th>
+          <th style="width: 2.5em">AR</th>
+          <th style="width: 2.5em">CS</th>
+          <th class="desc-first" style="width: 8em">Misses / FCs</th>
+          <th class="desc-first" style="width: 6em">Update</th>
+          <th class="desc-first" style="width: 12em">Local data</th>
         </tr>
       </thead>
       <tbody>

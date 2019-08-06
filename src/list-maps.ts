@@ -430,13 +430,15 @@ function initUnsortedTableRows() {
                 $('<i>').addClass(approved_status_icons[row.approved_status + 2]),
                 document.createTextNode(row.approved_date_string.split(' ')[0])
             ],
-            [
-                $('<i>').addClass(mode_icons[row.mode]),
-                $('<a>')
-                    .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
-                    .attr('target', '_blank')
-                    .text(row.display_string),
-                row.beatmap_id_number > 0 ? $('<div class="float-right">').append([
+            $('<div>').addClass('map-cell').append([
+                $('<div>').append([
+                    $('<i>').addClass(mode_icons[row.mode]),
+                    $('<a>')
+                        .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
+                        .attr('target', '_blank')
+                        .text(row.display_string)]
+                ),
+                row.beatmap_id_number > 0 ? $('<div>').append([
                     $('<a><i class="fa fa-picture-o">')
                         .attr('target', '_blank')
                         .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
@@ -446,7 +448,7 @@ function initUnsortedTableRows() {
                     $('<a><i class="fa fa-cloud-download">')
                         .attr('href', `osu://dl/${row.beatmapset_id}`)
                 ]) : $()
-            ],
+            ]),
             row.stars.toFixed(2),
             row.pp.toFixed(0),
             `${Math.floor(row.hit_length / 60)}:${pad(Math.floor(row.hit_length % 60))}`,
