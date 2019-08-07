@@ -49,48 +49,7 @@ class SummaryRow {
     }
 }
 
-type RankingRowData =
-    [
-        number, number, string, string, string, string, string, string, number, string, string
-    ];
-class RankingRow {
-    stars: number;
-    pp: number;
-    user_id: string;
-    username: string;
-    username_lower: string;
-    beatmap_id: string;
-    beatmap_id_number: number;
-    beatmapset_id: string;
-    display_string: string;
-    display_string_lower: string;
-    mods: string;
-    accuracy: number;
-    combo_display: string;
-    date_played_string: string;
-    constructor(public readonly rank: number, private readonly data: RankingRowData) {
-        [
-            this.stars,
-            this.pp,
-            this.user_id,
-            this.username,
-            this.beatmap_id,
-            this.beatmapset_id,
-            this.display_string,
-            this.mods,
-            this.accuracy,
-            this.combo_display,
-            this.date_played_string
-        ] = data;
-        this.beatmap_id_number = parseInt(this.beatmap_id);
-        this.username_lower = this.username.toLowerCase();
-        this.display_string_lower = this.display_string.toLowerCase();
-    }
-}
-
-
 let summaryRows: SummaryRow[] = [];
-let rankingRows: RankingRow[] = [];
 let unsortedTableRows: HTMLTableRowElement[] = [];
 let currentSortOrder: number[] = [];
 let currentHashLink = '#';
@@ -316,7 +275,6 @@ function simplifySortOrder(order: number[], [noTies, defaultOrder]: [number[], n
 }
 
 const summaryOrderConfig: [number[], number] = [[0, 1, 2, 3, 4, 5, 8], -3];
-const rankingOrderConfig: [number[], number] = [[0, 1, 7], 1];
 function setQueryAccordingToHash() {
     let obj: { [k: string]: string; };
     try {
@@ -797,84 +755,4 @@ async function main() {
     loadData(await resp.json(), new Date(resp.headers.get('Last-Modified') || '0'));
 }
 
-function initUnsortedRankingTableRows() {
-    if (rankingRows.length === 0)
-        return false;
-
-    unsortedTableRows = rankingRows.map(row =>
-        $('<tr>').append([
-            row.rank.toString(),
-            row.pp.toFixed(2),
-            $('<a>').attr('href', `https://osu.ppy.sh/u/${row.user_id}`).text(row.username),
-            [
-                $('<a>')
-                    .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
-                    .text(row.display_string),
-                row.beatmap_id_number > 0 ? $('<div class="float-right">').append([
-                    $('<a><i class="fa fa-picture-o">')
-                        .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
-                    $('<a><i class="fa fa-download">')
-                        .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`),
-                    $('<a><i class="fa fa-cloud-download">')
-                        .attr('href', `osu://dl/${row.beatmapset_id}`)
-                ]) : $()
-            ],
-            row.mods,
-            row.accuracy.toFixed(2) + '%',
-            row.combo_display,
-            row.date_played_string,
-        ].map(x => $('<td>').append(x)))[0] as HTMLTableRowElement);
-
-    unsortedTableRowsChanged = true;
-    return true;
-}
-
-const rankingSortKeys = [
-    (x: RankingRow) => x.rank,
-    (x: RankingRow) => x.pp,
-    (x: RankingRow) => x.username_lower,
-    (x: RankingRow) => x.display_string_lower,
-    (x: RankingRow) => x.mods,
-    (x: RankingRow) => x.accuracy,
-    (x: RankingRow) => x.combo_display,
-    (x: RankingRow) => x.date_played_string,
-];
-
-function drawRankingTable() {
-    const indices = rankingRows.map((_row, i) => i);
-    const prevIndex = Array(rankingRows.length);
-    for (const ord of currentSortOrder) {
-        if (ord === 0) continue;
-        indices.forEach((x, i) => prevIndex[x] = i);
-        const sortKey = rankingSortKeys[Math.abs(ord) - 1];
-        const sign = ord > 0 ? 1 : -1;
-        indices.sort((x, y) => {
-            const kx = sortKey(rankingRows[x]);
-            const ky = sortKey(rankingRows[y]);
-            return kx < ky ? -sign : kx > ky ? sign : prevIndex[x] - prevIndex[y];
-        });
-    }
-    drawTable(indices);
-}
-
-async function rankingMain() {
-    initTable(rankingSortKeys, rankingOrderConfig, drawRankingTable);
-    const loadData = (data: RankingRowData[], lastModified: Date) => {
-        $('#last-update-time')
-            .append($('<time>')
-                .attr('datetime', lastModified.toISOString())
-                .text(lastModified.toISOString().split('T')[0]));
-        rankingRows = data.map((x, i) => new RankingRow(i + 1, x));
-        initUnsortedRankingTableRows();
-        drawRankingTable();
-        $('#summary-table-loader').hide();
-    };
-    const resp = await fetch('data/ranking.json');
-    loadData(await resp.json(), new Date(resp.headers.get('Last-Modified') || '0'));
-}
-
-if (/ranking\.html$/i.test(location.pathname)) {
-    $(rankingMain);
-} else {
-    $(main);
-}
+$(main);

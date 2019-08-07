@@ -33,30 +33,7 @@ class SummaryRow {
         this.info = null;
     }
 }
-class RankingRow {
-    constructor(rank, data) {
-        this.rank = rank;
-        this.data = data;
-        [
-            this.stars,
-            this.pp,
-            this.user_id,
-            this.username,
-            this.beatmap_id,
-            this.beatmapset_id,
-            this.display_string,
-            this.mods,
-            this.accuracy,
-            this.combo_display,
-            this.date_played_string
-        ] = data;
-        this.beatmap_id_number = parseInt(this.beatmap_id);
-        this.username_lower = this.username.toLowerCase();
-        this.display_string_lower = this.display_string.toLowerCase();
-    }
-}
 let summaryRows = [];
-let rankingRows = [];
 let unsortedTableRows = [];
 let currentSortOrder = [];
 let currentHashLink = '#';
@@ -278,7 +255,6 @@ function simplifySortOrder(order, [noTies, defaultOrder]) {
     return res;
 }
 const summaryOrderConfig = [[0, 1, 2, 3, 4, 5, 8], -3];
-const rankingOrderConfig = [[0, 1, 7], 1];
 function setQueryAccordingToHash() {
     let obj;
     try {
@@ -714,82 +690,5 @@ function main() {
         loadData(yield resp.json(), new Date(resp.headers.get('Last-Modified') || '0'));
     });
 }
-function initUnsortedRankingTableRows() {
-    if (rankingRows.length === 0)
-        return false;
-    unsortedTableRows = rankingRows.map(row => $('<tr>').append([
-        row.rank.toString(),
-        row.pp.toFixed(2),
-        $('<a>').attr('href', `https://osu.ppy.sh/u/${row.user_id}`).text(row.username),
-        [
-            $('<a>')
-                .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
-                .text(row.display_string),
-            row.beatmap_id_number > 0 ? $('<div class="float-right">').append([
-                $('<a><i class="fa fa-picture-o">')
-                    .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
-                $('<a><i class="fa fa-download">')
-                    .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`),
-                $('<a><i class="fa fa-cloud-download">')
-                    .attr('href', `osu://dl/${row.beatmapset_id}`)
-            ]) : $()
-        ],
-        row.mods,
-        row.accuracy.toFixed(2) + '%',
-        row.combo_display,
-        row.date_played_string,
-    ].map(x => $('<td>').append(x)))[0]);
-    unsortedTableRowsChanged = true;
-    return true;
-}
-const rankingSortKeys = [
-    (x) => x.rank,
-    (x) => x.pp,
-    (x) => x.username_lower,
-    (x) => x.display_string_lower,
-    (x) => x.mods,
-    (x) => x.accuracy,
-    (x) => x.combo_display,
-    (x) => x.date_played_string,
-];
-function drawRankingTable() {
-    const indices = rankingRows.map((_row, i) => i);
-    const prevIndex = Array(rankingRows.length);
-    for (const ord of currentSortOrder) {
-        if (ord === 0)
-            continue;
-        indices.forEach((x, i) => prevIndex[x] = i);
-        const sortKey = rankingSortKeys[Math.abs(ord) - 1];
-        const sign = ord > 0 ? 1 : -1;
-        indices.sort((x, y) => {
-            const kx = sortKey(rankingRows[x]);
-            const ky = sortKey(rankingRows[y]);
-            return kx < ky ? -sign : kx > ky ? sign : prevIndex[x] - prevIndex[y];
-        });
-    }
-    drawTable(indices);
-}
-function rankingMain() {
-    return __awaiter(this, void 0, void 0, function* () {
-        initTable(rankingSortKeys, rankingOrderConfig, drawRankingTable);
-        const loadData = (data, lastModified) => {
-            $('#last-update-time')
-                .append($('<time>')
-                .attr('datetime', lastModified.toISOString())
-                .text(lastModified.toISOString().split('T')[0]));
-            rankingRows = data.map((x, i) => new RankingRow(i + 1, x));
-            initUnsortedRankingTableRows();
-            drawRankingTable();
-            $('#summary-table-loader').hide();
-        };
-        const resp = yield fetch('data/ranking.json');
-        loadData(yield resp.json(), new Date(resp.headers.get('Last-Modified') || '0'));
-    });
-}
-if (/ranking\.html$/i.test(location.pathname)) {
-    $(rankingMain);
-}
-else {
-    $(main);
-}
+$(main);
 //# sourceMappingURL=list-maps.js.map
