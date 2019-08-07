@@ -531,6 +531,9 @@ class BeatmapInfo {
         this.lastPlayed = lastPlayed;
         this.rankAchieved = rankAchieved;
     }
+    merge(other) {
+        return new BeatmapInfo(this.beatmapId, new Date(Math.max(this.lastPlayed.valueOf(), other.lastPlayed.valueOf())), Math.max(this.rankAchieved, other.rankAchieved));
+    }
 }
 function readBeatmap(sr) {
     const SizeInBytes = sr.readInt32();
@@ -599,15 +602,19 @@ function readBeatmap(sr) {
 const beatmapInfoMap = new Map();
 let beatmapInfoMapVersion = MINIMUM_DATE;
 function loadOsuDB(buffer, timestamp) {
-    beatmapInfoMap.clear();
     const sr = new SerializationReader(buffer);
     sr.skip(4 + 4 + 1 + 8);
     sr.readString();
     const beatmapCount = sr.readInt32();
     for (let i = 0; i < beatmapCount; i += 1) {
-        const beatmap = readBeatmap(sr);
-        if (beatmap.beatmapId > 0)
+        let beatmap = readBeatmap(sr);
+        if (beatmap.beatmapId > 0) {
+            let existing = beatmapInfoMap.get(beatmap.beatmapId);
+            if (existing) {
+                beatmap = beatmap.merge(existing);
+            }
             beatmapInfoMap.set(beatmap.beatmapId, beatmap);
+        }
     }
     beatmapInfoMapVersion = timestamp;
 }
