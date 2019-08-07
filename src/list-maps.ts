@@ -3,7 +3,7 @@
 type SummaryRowData =
     [
         number, string, number, string, string, string, number, number, number,
-        number, number, number, number, number, number, number, number, number, number, string
+        number, number, number, number, string
     ];
 const MINIMUM_DATE = new Date(0);
 class SummaryRow {
@@ -22,13 +22,7 @@ class SummaryRow {
     max_combo: number;
     approach_rate: number;
     circle_size: number;
-    min_misses: number;
-    fcNM: number;
-    fcHD: number;
-    fcHR: number;
-    fcHDHR: number;
-    fcDT: number;
-    fcHDDT: number;
+    fc_level: number;
     update_date: string;
     info: BeatmapInfo | null;
     constructor(private readonly data: SummaryRowData) {
@@ -45,13 +39,7 @@ class SummaryRow {
             this.max_combo,
             this.approach_rate,
             this.circle_size,
-            this.min_misses,
-            this.fcNM,
-            this.fcHD,
-            this.fcHR,
-            this.fcHDHR,
-            this.fcDT,
-            this.fcHDDT,
+            this.fc_level,
             this.update_date,
         ] = data;
         this.beatmap_id_number = parseInt(this.beatmap_id);
@@ -177,11 +165,7 @@ const sortKeys = [
     (x: SummaryRow) => x.max_combo,
     (x: SummaryRow) => x.approach_rate,
     (x: SummaryRow) => x.circle_size,
-    (x: SummaryRow) =>
-        x.fcHDDT * 2 + x.fcDT * 1e8 +
-        x.fcHDHR * 2 + x.fcHR * 1e4 +
-        x.fcHD * 2 + x.fcNM -
-        x.min_misses,
+    (x: SummaryRow) => x.fc_level,
     (x: SummaryRow) => !x.info ? MINIMUM_DATE.valueOf() : x.info.lastPlayed.valueOf()
 ];
 
@@ -209,17 +193,6 @@ function drawTableForCurrentFiltering() {
     const filter_local_data = parseInt($('#filter-local-data').val() as string);
     const index_start = parseInt($('#result-index-start').val() as string) || 0;
     const count_limit = parseInt($('#result-count-limit').val() as string) || 100;
-
-    const get_fc_level = (row: SummaryRow) => {
-        if (row.min_misses !== 0) return 1;
-        if (row.fcDT !== 0 || row.fcHDDT !== 0) return 8;
-        if (row.fcNM === 0 && row.fcHD === 0 && row.fcHR === 0 && row.fcHDHR === 0) return 2;
-        if (row.fcNM === 0 && row.fcHD === 0) return 3;
-        if (row.fcHD === 0) return 4;
-        if (row.fcHR === 0 && row.fcHDHR === 0) return 5;
-        if (row.fcHDHR === 0) return 6;
-        return 7;
-    };
 
     const get_local_data_flags = (row: SummaryRow): number => {
         if (beatmapInfoMap.size === 0) return -1;
@@ -271,7 +244,9 @@ function drawTableForCurrentFiltering() {
         if (!filter_search_query.check(row))
             return false;
 
-        if (filter_fc_level !== 0 && get_fc_level(row) !== filter_fc_level)
+        if (filter_fc_level !== 0 && (filter_fc_level === 1
+            ? row.fc_level > 0
+            : row.fc_level !== filter_fc_level))
             return false;
 
         if (filter_local_data !== 0) {
@@ -393,16 +368,24 @@ const rankAchievedClass = [
     'B', 'C', 'D', 'F', '-'
 ];
 
-function displayFCLevel(row: SummaryRow) {
-    if (row.min_misses > 0)
-        return row.min_misses + (row.min_misses === 1 ? ' miss' : ' misses');
-    if (row.fcDT + row.fcHDDT !== 0)
-        return (row.fcHDDT !== 0 ? 'HD' : '') + 'DT';
-    if (row.fcHR + row.fcHDHR !== 0)
-        return (row.fcHDHR !== 0 ? 'HD' : '') + 'HR';
-    if (row.fcHD + row.fcNM !== 0)
-        return (row.fcHD !== 0 ? 'HD' : 'NM');
-    return 'EZ only';
+const FC_LEVEL_DISPLAY: Record<number, string> = {
+    2: 'Only EZ',
+    3: 'NM',
+    4: 'HD',
+    5: 'HR',
+    6: 'HDHR',
+    7: 'EZFL',
+    8: 'FL+',
+    9: '(HD)DT',
+    10: '(HD)HRDT',
+};
+
+function displayFCLevel(fc_level: number) {
+    if (fc_level === -999)
+        return 'No scores';
+    if (fc_level <= 0)
+        return -fc_level + (fc_level === -1 ? ' miss' : ' misses');
+    return FC_LEVEL_DISPLAY[fc_level]!;
 }
 
 let beatmapInfoMapUsedVersion = MINIMUM_DATE;
@@ -467,7 +450,7 @@ function initUnsortedTableRows() {
             row.max_combo.toString(),
             row.approach_rate.toFixed(1),
             row.circle_size.toFixed(1),
-            displayFCLevel(row),
+            displayFCLevel(row.fc_level),
             beatmapInfoMap.size === 0 ? [] :
                 [
                     $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),

@@ -260,6 +260,8 @@ bitflags::bitflags! {
         const KEY3         = 134217728;
         const KEY2         = 268435456;
         const SCORE_V2     = 536870912;
+
+        const CATCH_DIFFICULTY_MASK = Self::EASY.bits | Self::HIDDEN.bits | Self::HARD_ROCK.bits | Self::DOUBLE_TIME.bits | Self::HALF_TIME.bits | Self::FLASHLIGHT.bits;
     }
 }
 

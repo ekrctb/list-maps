@@ -19,6 +19,7 @@ use reqwest::Client;
 use serde_derive::*;
 use serde_json::value::RawValue;
 use std::{
+    collections::HashMap,
     convert::TryFrom,
     fs::File,
     io::{BufWriter, Write},
@@ -88,8 +89,8 @@ struct GetScores {
     approved_date_start: Option<DateTime<Utc>>,
     #[structopt(long = "num-scores")]
     num_scores: Option<usize>,
-    #[structopt(long = "find-fc-num-scores")]
-    find_fc_num_scores: Option<usize>,
+    #[structopt(long = "more-num-scores")]
+    more_num_scores: Option<usize>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -370,27 +371,38 @@ struct LeaderboardSummary {
     fetched: bool,
     len: usize,
     no_more_scores: bool,
-    has_an_fc: bool,
+    is_interesting: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct FCCheck<'a> {
+struct IsInterestingCheck<'a> {
     #[serde(borrow)]
     pub perfect: &'a str,
     #[serde(borrow)]
     pub enabled_mods: &'a str,
 }
 
-fn has_an_fc(scores: &[Box<RawValue>]) -> bool {
-    scores
-        .iter()
-        .any(|score| match serde_json::from_str::<FCCheck>(score.get()) {
-            Ok(x) => {
-                let mods = data::mods_from_str(x.enabled_mods).unwrap_or(data::Mods::empty());
-                x.perfect == "1" && !mods.contains(data::Mods::HALF_TIME)
+fn is_interesting(scores: &[Box<RawValue>]) -> bool {
+    use data::Mods;
+    scores.iter().all(|score| {
+        match serde_json::from_str::<IsInterestingCheck>(score.get())
+            .ok()
+            .and_then(|x| {
+                Some((
+                    x.perfect == "1",
+                    data::mods_from_str(x.enabled_mods).ok()? & Mods::CATCH_DIFFICULTY_MASK,
+                ))
+            }) {
+            Some((is_fc, mods)) => {
+                !is_fc
+                    || (mods != Mods::empty()
+                        && mods != Mods::HIDDEN
+                        && mods != Mods::HARD_ROCK
+                        && mods != Mods::HIDDEN | Mods::HARD_ROCK)
             }
-            Err(_) => false,
-        })
+            None => false,
+        }
+    })
 }
 
 fn get_scores_for(
@@ -414,7 +426,7 @@ fn get_scores_for(
                 fetched: false,
                 len: value.scores.len(),
                 no_more_scores: value.no_more_scores,
-                has_an_fc: has_an_fc(&value.scores),
+                is_interesting: is_interesting(&value.scores),
             });
         }
     }
@@ -426,7 +438,7 @@ fn get_scores_for(
             .request_text(&mut api.client)?;
         Ok(serde_json::from_str(&text).context("malformed JSON")?)
     });
-    let has_an_fc = has_an_fc(&scores);
+    let is_interesting = is_interesting(&scores);
     let len = scores.len();
     let no_more_scores = len < num_scores;
     cache.set(
@@ -441,14 +453,14 @@ fn get_scores_for(
         fetched: true,
         len,
         no_more_scores,
-        has_an_fc,
+        is_interesting,
     })
 }
 
 fn get_scores(args: &GetScores) -> Fallible<()> {
     validate_game_mode_str(&args.game_mode)?;
     let num_scores = args.num_scores.unwrap_or(1);
-    let find_fc_num_scores = args.find_fc_num_scores.unwrap_or(10);
+    let more_num_scores = args.more_num_scores.unwrap_or(10);
     let mut api = api_client()?;
     let cache = scores_cache()?;
     let mut count = 0;
@@ -478,14 +490,14 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
             if summary.fetched {
                 fetch_count += 1;
                 println!(
-                    "{} {}: {} scores, {}",
+                    "{} {}: {} scores{}",
                     count,
                     beatmap_title(&beatmap),
                     summary.len,
-                    if summary.has_an_fc {
-                        "has FCs"
+                    if summary.is_interesting {
+                        " (interesting)"
                     } else {
-                        "no FCs"
+                        ""
                     },
                 );
                 sleep_secs(2);
@@ -493,8 +505,8 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
             Ok(summary)
         };
 
-        if !fetch(num_scores)?.has_an_fc {
-            fetch(find_fc_num_scores)?;
+        if fetch(num_scores)?.is_interesting {
+            fetch(more_num_scores)?;
         }
 
         Ok(())
@@ -554,19 +566,64 @@ fn calc_pp(
     }
 }
 
+fn get_fc_level(fc_count: &HashMap<data::Mods, i32>, min_misses: i32) -> i32 {
+    use osu_api::data::Mods;
+    let get = |mods| fc_count.get(&mods).cloned().unwrap_or(0);
+    let get_contains = |mods| -> i32 {
+        fc_count
+            .iter()
+            .filter(|(k, _)| k.contains(mods))
+            .map(|x| x.1)
+            .sum()
+    };
+
+    let hrdt_plus = get_contains(Mods::HARD_ROCK | Mods::DOUBLE_TIME);
+    let dt_plus = get_contains(Mods::DOUBLE_TIME);
+    let hr = get(Mods::HARD_ROCK);
+    let hdhr = get(Mods::HIDDEN | Mods::HARD_ROCK);
+    let hd = get(Mods::HIDDEN);
+    let nm = get(Mods::empty());
+    let ez_plus = get_contains(Mods::EASY);
+    let fl_plus = get_contains(Mods::FLASHLIGHT);
+    let ezfl = get(Mods::EASY | Mods::FLASHLIGHT);
+
+    if hrdt_plus != 0 {
+        return 10;
+    }
+    if dt_plus != 0 {
+        return 9;
+    }
+    if fl_plus - ezfl != 0 {
+        return 8;
+    }
+    if ezfl != 0 {
+        return 7;
+    }
+    if hdhr != 0 {
+        return 6;
+    }
+    if hr != 0 {
+        return 5;
+    }
+    if hd != 0 {
+        return 4;
+    }
+    if nm != 0 {
+        return 3;
+    }
+    if ez_plus != 0 {
+        return 2;
+    }
+
+    -min_misses
+}
+
 fn beatmap_summary(
     beatmap: &Beatmap,
     scores: &[Box<RawValue>],
     update_date: &DateTime<Utc>,
 ) -> Fallible<serde_json::Value> {
-    use osu_api::data::Mods;
-    let mods_mask = Mods::EASY
-        | Mods::HIDDEN
-        | Mods::HARD_ROCK
-        | Mods::DOUBLE_TIME
-        | Mods::HALF_TIME
-        | Mods::FLASHLIGHT;
-    let mut fc_count = std::collections::HashMap::new();
+    let mut fc_count = HashMap::new();
     let mut min_misses = 999;
     for (i, score) in scores.iter().enumerate() {
         let score: Score = match serde_json::from_str(score.get()) {
@@ -579,16 +636,13 @@ fn beatmap_summary(
                 i
             ),
         };
-        let mods = data::mods_from_str(&score.enabled_mods)?;
-        if !mods.contains(Mods::HALF_TIME) {
-            min_misses = min_misses.min(i32::from_str(&score.countmiss)?);
+        let mods = data::mods_from_str(&score.enabled_mods)? & data::Mods::CATCH_DIFFICULTY_MASK;
+        if mods.contains(data::Mods::HALF_TIME) {
+            continue;
         }
-        if u8::from_str(&score.perfect)? == 1 {
-            let relevant_mods = mods & mods_mask;
-            fc_count
-                .entry(relevant_mods)
-                .and_modify(|x| *x += 1)
-                .or_insert(1);
+        min_misses = min_misses.min(i32::from_str(&score.countmiss)?);
+        if score.perfect == "1" {
+            fc_count.entry(mods).and_modify(|x| *x += 1).or_insert(1);
         }
     }
     let stars = beatmap_stars(beatmap);
@@ -612,17 +666,7 @@ fn beatmap_summary(
         max_combo,
         approach_rate,
         f64::from_str(&beatmap.diff_size)?,
-        min_misses,
-        fc_count.get(&Mods::empty()).unwrap_or(&0),
-        fc_count.get(&Mods::HIDDEN).unwrap_or(&0),
-        fc_count.get(&Mods::HARD_ROCK).unwrap_or(&0),
-        fc_count
-            .get(&(Mods::HIDDEN | Mods::HARD_ROCK))
-            .unwrap_or(&0),
-        fc_count.get(&Mods::DOUBLE_TIME).unwrap_or(&0),
-        fc_count
-            .get(&(Mods::HIDDEN | Mods::DOUBLE_TIME))
-            .unwrap_or(&0),
+        get_fc_level(&fc_count, min_misses),
         format!("{}", update_date.format("%F")),
     ]))
 }
