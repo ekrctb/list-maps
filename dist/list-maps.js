@@ -359,6 +359,17 @@ const rankAchievedClass = [
     'SSH', 'SH', 'SS', 'S', 'A',
     'B', 'C', 'D', 'F', '-'
 ];
+function displayFCLevel(row) {
+    if (row.min_misses > 0)
+        return row.min_misses + (row.min_misses === 1 ? ' miss' : ' misses');
+    if (row.fcDT + row.fcHDDT !== 0)
+        return (row.fcHDDT !== 0 ? 'HD' : '') + 'DT';
+    if (row.fcHR + row.fcHDHR !== 0)
+        return (row.fcHDHR !== 0 ? 'HD' : '') + 'HR';
+    if (row.fcHD + row.fcNM !== 0)
+        return (row.fcHD !== 0 ? 'HD' : 'NM');
+    return 'EZ only';
+}
 let beatmapInfoMapUsedVersion = MINIMUM_DATE;
 function initUnsortedTableRows() {
     if (summaryRows.length === 0)
@@ -418,8 +429,7 @@ function initUnsortedTableRows() {
         row.max_combo.toString(),
         row.approach_rate.toFixed(1),
         row.circle_size.toFixed(1),
-        (row.min_misses !== 0 ? (row.min_misses === 1 ? '1 miss' : row.min_misses + ' misses') :
-            [row.fcNM, row.fcHD, row.fcHR, row.fcHDHR, row.fcDT, row.fcHDDT].join(', ')),
+        displayFCLevel(row),
         row.update_date,
         beatmapInfoMap.size === 0 ? [] :
             [

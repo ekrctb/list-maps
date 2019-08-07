@@ -19,6 +19,7 @@ use reqwest::Client;
 use serde_derive::*;
 use serde_json::value::RawValue;
 use std::{
+    convert::TryFrom,
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
@@ -85,8 +86,10 @@ struct GetScores {
     cache_expire: Option<DateTime<Utc>>,
     #[structopt(long = "ranked-date-start")]
     approved_date_start: Option<DateTime<Utc>>,
-    #[structopt(long = "max-num-scores")]
-    max_num_scores: Option<i32>,
+    #[structopt(long = "num-scores")]
+    num_scores: Option<usize>,
+    #[structopt(long = "find-fc-num-scores")]
+    find_fc_num_scores: Option<usize>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -353,6 +356,8 @@ fn each_filtered_map(min_stars: f64, mut f: impl FnMut(&Beatmap) -> Fallible<()>
 struct ScoreCacheValue {
     pub update_date: DateTime<Utc>,
     pub scores: Vec<Box<RawValue>>,
+    #[serde(default)]
+    pub no_more_scores: bool,
 }
 
 fn validate_game_mode_str(game_mode: &str) -> Fallible<()> {
@@ -360,9 +365,85 @@ fn validate_game_mode_str(game_mode: &str) -> Fallible<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+struct LeaderboardSummary {
+    fetched: bool,
+    len: usize,
+    no_more_scores: bool,
+    has_an_fc: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct Perfect<'a> {
+    #[serde(borrow)]
+    pub perfect: &'a str,
+}
+
+fn has_an_fc(scores: &[Box<RawValue>]) -> bool {
+    scores
+        .iter()
+        .any(|score| match serde_json::from_str::<Perfect>(score.get()) {
+            Ok(perfect) => perfect.perfect == "1",
+            Err(_) => false,
+        })
+}
+
+fn get_scores_for(
+    beatmap: &Beatmap,
+    game_mode: &str,
+    num_scores: usize,
+    cache: &sled::Db,
+    cache_expire: Option<DateTime<Utc>>,
+    api: &mut ApiClient,
+) -> Fallible<LeaderboardSummary> {
+    let key = cache_key(&beatmap.beatmap_id, game_mode);
+    if let Some(value) = cache.get(&key)? {
+        let value: ScoreCacheValue =
+            serde_json::from_slice(&value).context("db content malformed")?;
+        let unexpired = match cache_expire {
+            Some(dt) => value.update_date >= dt,
+            None => true,
+        };
+        if unexpired && (value.no_more_scores || value.scores.len() >= num_scores) {
+            return Ok(LeaderboardSummary {
+                fetched: false,
+                len: value.scores.len(),
+                no_more_scores: value.no_more_scores,
+                has_an_fc: has_an_fc(&value.scores),
+            });
+        }
+    }
+    let update_date = Utc::now();
+    let scores: Vec<Box<RawValue>> = retry_forever("get_scores", || {
+        let text = osu_api::GetScores::new(api.key.clone(), beatmap.beatmap_id.clone())
+            .mode(game_mode.clone())
+            .limit(i32::try_from(num_scores).unwrap())
+            .request_text(&mut api.client)?;
+        Ok(serde_json::from_str(&text).context("malformed JSON")?)
+    });
+    let has_an_fc = has_an_fc(&scores);
+    let len = scores.len();
+    let no_more_scores = len < num_scores;
+    cache.set(
+        &key,
+        serde_json::to_vec(&ScoreCacheValue {
+            update_date,
+            scores,
+            no_more_scores,
+        })?,
+    )?;
+    Ok(LeaderboardSummary {
+        fetched: true,
+        len,
+        no_more_scores,
+        has_an_fc,
+    })
+}
+
 fn get_scores(args: &GetScores) -> Fallible<()> {
     validate_game_mode_str(&args.game_mode)?;
-    let max_num_scores = args.max_num_scores.unwrap_or(1);
+    let num_scores = args.num_scores.unwrap_or(1);
+    let find_fc_num_scores = args.find_fc_num_scores.unwrap_or(10);
     let mut api = api_client()?;
     let cache = scores_cache()?;
     let mut count = 0;
@@ -380,36 +461,36 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
                 }
             }
         }
-        let key = cache_key(&beatmap.beatmap_id, &args.game_mode);
-        if let Some(value) = cache.get(&key)? {
-            let value: ScoreCacheValue =
-                serde_json::from_slice(&value).context("db content malformed")?;
-            if match args.cache_expire {
-                Some(dt) => value.update_date >= dt,
-                None => true,
-            } {
-                return Ok(());
+        let mut fetch = |num| -> Fallible<LeaderboardSummary> {
+            let summary = get_scores_for(
+                beatmap,
+                &args.game_mode,
+                num,
+                &cache,
+                args.cache_expire,
+                &mut api,
+            )?;
+            if summary.fetched {
+                fetch_count += 1;
+                println!(
+                    "{} {}: {} scores, {}",
+                    count,
+                    beatmap_title(&beatmap),
+                    summary.len,
+                    if summary.has_an_fc {
+                        "has FCs"
+                    } else {
+                        "no FCs"
+                    },
+                );
+                sleep_secs(2);
             }
+            Ok(summary)
+        };
+
+        if !fetch(num_scores)?.has_an_fc {
+            fetch(find_fc_num_scores)?;
         }
-        let update_date = Utc::now();
-        let scores: Vec<Box<RawValue>> = retry_forever("get_scores", || {
-            let text = osu_api::GetScores::new(api.key.clone(), beatmap.beatmap_id.clone())
-                .mode(args.game_mode.clone())
-                .limit(max_num_scores)
-                .request_text(&mut api.client)?;
-            Ok(serde_json::from_str(&text).context("malformed JSON")?)
-        });
-        fetch_count += 1;
-        let len = scores.len();
-        cache.set(
-            &key,
-            serde_json::to_vec(&ScoreCacheValue {
-                update_date,
-                scores,
-            })?,
-        )?;
-        println!("{} {}: {} scores", count, beatmap_title(&beatmap), len);
-        sleep_secs(2);
 
         Ok(())
     })?;
