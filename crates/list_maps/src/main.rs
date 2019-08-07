@@ -374,16 +374,21 @@ struct LeaderboardSummary {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct Perfect<'a> {
+struct FCCheck<'a> {
     #[serde(borrow)]
     pub perfect: &'a str,
+    #[serde(borrow)]
+    pub enabled_mods: &'a str,
 }
 
 fn has_an_fc(scores: &[Box<RawValue>]) -> bool {
     scores
         .iter()
-        .any(|score| match serde_json::from_str::<Perfect>(score.get()) {
-            Ok(perfect) => perfect.perfect == "1",
+        .any(|score| match serde_json::from_str::<FCCheck>(score.get()) {
+            Ok(x) => {
+                let mods = data::mods_from_str(x.enabled_mods).unwrap_or(data::Mods::empty());
+                x.perfect == "1" && !mods.contains(data::Mods::HALF_TIME)
+            }
             Err(_) => false,
         })
 }
