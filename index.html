@@ -36,6 +36,12 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    .narrow-header-text {
+      display: inline-block;
+      margin-left: 50%;
+      transform: translateX(-50%);
+    }
   </style>
 </head>
 
@@ -152,14 +158,13 @@
         <tr>
           <th class="desc-first" style="width: 8em">Date</th>
           <th>Map</th>
-          <th class="sorted descending desc-first" style="width: 3em">Stars</th>
-          <th class="desc-first" style="width: 3.5em">pp</th>
-          <th style="width: 3.5em">Length</th>
-          <th style="width: 3.5em">Combo</th>
-          <th style="width: 2.5em">AR</th>
-          <th style="width: 2.5em">CS</th>
-          <th class="desc-first" style="width: 8em">FCs / min miss</th>
-          <th class="desc-first" style="width: 6em">Update</th>
+          <th class="sorted descending desc-first" style="width: 3em"><span class="narrow-header-text">Stars</span></th>
+          <th class="desc-first" style="width: 3.5em"><span class="narrow-header-text">PP<span></th>
+          <th style="width: 3.5em"><span class="narrow-header-text">Length<span></th>
+          <th style="width: 3.5em"><span class="narrow-header-text">Combo</span></th>
+          <th style="width: 2.5em"><span class="narrow-header-text">AR</span></th>
+          <th style="width: 2.5em"><span class="narrow-header-text">CS</span></th>
+          <th class="desc-first" style="width: 6em">FCs / min miss</th>
           <th class="desc-first" style="width: 12em">Local data</th>
         </tr>
       </thead>

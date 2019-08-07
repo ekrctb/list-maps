@@ -140,7 +140,6 @@ const sortKeys = [
         x.fcHDHR * 2 + x.fcHR * 1e4 +
         x.fcHD * 2 + x.fcNM -
         x.min_misses,
-    (x) => x.update_date,
     (x) => !x.info ? MINIMUM_DATE.valueOf() : x.info.lastPlayed.valueOf()
 ];
 function stringifyObject(obj) {
@@ -302,7 +301,7 @@ function simplifySortOrder(order, [noTies, defaultOrder]) {
     res.reverse();
     return res;
 }
-const summaryOrderConfig = [[0, 1, 2, 3, 4, 5, 9], -3];
+const summaryOrderConfig = [[0, 1, 2, 3, 4, 5, 8], -3];
 const rankingOrderConfig = [[0, 1, 7], 1];
 function setQueryAccordingToHash() {
     let obj;
@@ -430,7 +429,6 @@ function initUnsortedTableRows() {
         row.approach_rate.toFixed(1),
         row.circle_size.toFixed(1),
         displayFCLevel(row),
-        row.update_date,
         beatmapInfoMap.size === 0 ? [] :
             [
                 $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),
@@ -660,7 +658,9 @@ function initTable(sortKeys, orderConfig, onSortOrderChanged) {
         $.data(thList[index], 'thIndex', index);
     });
     thList.click((event) => {
-        const th = $(event.target);
+        let th = $(event.target);
+        if (!th.is('th'))
+            th = th.parent('th');
         let sign;
         if (th.hasClass('sorted'))
             sign = th.hasClass('descending') ? 1 : -1;
