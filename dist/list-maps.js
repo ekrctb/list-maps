@@ -371,9 +371,8 @@ function initUnsortedTableRows() {
                     .text(row.display_string)
             ]),
             row.beatmap_id_number > 0 ? $('<div>').append([
-                $('<a><i class="fa fa-picture-o">')
-                    .attr('target', '_blank')
-                    .attr('href', `https://b.ppy.sh/thumb/${row.beatmapset_id}.jpg`),
+                $('<a><i class="fa fa-music">')
+                    .attr('href', `javascript:toggleMusic("https://b.ppy.sh/preview/${row.beatmapset_id}.mp3")`),
                 $('<a><i class="fa fa-download">')
                     .attr('target', '_blank')
                     .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`),
@@ -639,6 +638,25 @@ function initTable(sortKeys, orderConfig, onSortOrderChanged) {
         onSortOrderChanged();
     });
 }
+function toggleMusic(uri) {
+    const audio = document.getElementById('audio');
+    setMusic(audio.src === uri ? null : uri);
+}
+function setMusic(uri) {
+    const audio = document.getElementById('audio');
+    if (uri) {
+        audio.src = uri;
+        audio.currentTime = 0;
+        audio.play();
+        $('.music-control').show();
+    }
+    else {
+        audio.pause();
+        audio.removeAttribute('src');
+        $('.music-control').hide();
+    }
+}
+const LOCAL_STORAGE_KEY_VOLUME = 'list-maps/volume';
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
         setQueryAccordingToHash();
@@ -693,6 +711,14 @@ function main() {
             if (!isPrev)
                 $('.main').get()[0].scroll(0, 0);
         });
+        const audio = document.getElementById('audio');
+        audio.volume = parseFloat(localStorage[LOCAL_STORAGE_KEY_VOLUME] || '1');
+        audio.onvolumechange = () => {
+            localStorage[LOCAL_STORAGE_KEY_VOLUME] = audio.volume.toString();
+        };
+        audio.onended = () => {
+            $('.music-control').hide();
+        };
         const resp = yield fetch('data/summary.json');
         loadData(yield resp.json(), new Date(resp.headers.get('Last-Modified') || '0'));
     });
