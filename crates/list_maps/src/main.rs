@@ -49,6 +49,8 @@ enum App {
     FindScores(FindScores),
     #[structopt(name = "show-beatmap")]
     ShowBeatmap(ShowBeatmap),
+    #[structopt(name = "show-db-stat")]
+    ShowDbStat(ShowDbStat),
 }
 
 #[derive(Debug, StructOpt)]
@@ -119,6 +121,9 @@ struct FindScores {
 
 #[derive(Debug, StructOpt)]
 struct ShowBeatmap {}
+
+#[derive(Debug, StructOpt)]
+struct ShowDbStat {}
 
 fn reqwest_client() -> Fallible<Client> {
     use reqwest::header;
@@ -986,6 +991,36 @@ fn show_beatmap(_args: &ShowBeatmap) -> Fallible<()> {
     Ok(())
 }
 
+fn show_db_stat(_args: &ShowDbStat) -> Fallible<()> {
+    let cache = scores_cache()?;
+    let mut more_than_1 = 0;
+    let mut more_than_10 = 0;
+    let mut only_1 = 0;
+    let mut total = 0;
+    let mut count = 0;
+    for entry in cache.iter() {
+        let value: ScoreCacheValue = serde_json::from_slice(&entry?.1)?;
+        let len = value.scores.len();
+        if len > 10 {
+            more_than_10 += 1;
+        }
+        if len > 1 {
+            more_than_1 += 1;
+        }
+        if len == 1 {
+            only_1 += 1;
+        }
+        total += len as u64;
+        count += 1;
+    }
+    println!("count = {}", count);
+    println!("average = {}", (total * 100 / count) as f64 / 100.0);
+    println!("more_than_1 = {}", more_than_1);
+    println!("more_than_10 = {}", more_than_10);
+    println!("only_1 = {}", only_1);
+    Ok(())
+}
+
 fn main() {
     match App::from_args() {
         App::GetMaps(args) => get_maps(&args),
@@ -994,6 +1029,7 @@ fn main() {
         App::RenderRanking(args) => render_ranking(&args),
         App::FindScores(args) => find_scores(&args),
         App::ShowBeatmap(args) => show_beatmap(&args),
+        App::ShowDbStat(args) => show_db_stat(&args),
     }
     .unwrap_or_else(|e| {
         for cause in e.iter_chain() {
