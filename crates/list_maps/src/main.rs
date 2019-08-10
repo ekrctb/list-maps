@@ -91,6 +91,8 @@ struct GetScores {
     num_scores: Option<usize>,
     #[structopt(long = "more-num-scores")]
     more_num_scores: Option<usize>,
+    #[structopt(long = "more-more-num-scores")]
+    more_more_num_scores: Option<usize>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -371,38 +373,46 @@ struct LeaderboardSummary {
     fetched: bool,
     len: usize,
     no_more_scores: bool,
-    is_interesting: bool,
+    should_fetch_more: ShouldFetchMore,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct IsInterestingCheck<'a> {
+struct ShouldFetchMoreInfo<'a> {
     #[serde(borrow)]
     pub perfect: &'a str,
     #[serde(borrow)]
     pub enabled_mods: &'a str,
 }
 
-fn is_interesting(scores: &[Box<RawValue>]) -> bool {
+#[derive(Debug, Clone)]
+struct ShouldFetchMore {
+    no_normal_fc: bool,
+    not_yet_hddt: bool,
+}
+
+fn should_fetch_more(scores: &[Box<RawValue>]) -> ShouldFetchMore {
     use data::Mods;
-    scores.iter().all(|score| {
-        match serde_json::from_str::<IsInterestingCheck>(score.get())
-            .ok()
-            .and_then(|x| {
-                Some((
-                    x.perfect == "1",
-                    data::mods_from_str(x.enabled_mods).ok()? & Mods::CATCH_DIFFICULTY_MASK,
-                ))
-            }) {
-            Some((is_fc, mods)) => {
-                !is_fc
-                    || (mods != Mods::empty()
-                        && mods != Mods::HIDDEN
-                        && mods != Mods::HARD_ROCK
-                        && mods != Mods::HIDDEN | Mods::HARD_ROCK)
-            }
-            None => false,
-        }
-    })
+    let info_iter = scores.iter().filter_map(|score| {
+        let x = serde_json::from_str::<ShouldFetchMoreInfo>(score.get()).ok()?;
+        Some((
+            x.perfect == "1",
+            data::mods_from_str(x.enabled_mods).ok()? & Mods::CATCH_DIFFICULTY_MASK,
+        ))
+    });
+    let no_normal_fc = info_iter.clone().all(|(is_fc, mods)| {
+        !is_fc
+            || (mods != Mods::empty()
+                && mods != Mods::HIDDEN
+                && mods != Mods::HARD_ROCK
+                && mods != Mods::HIDDEN | Mods::HARD_ROCK)
+    });
+    let not_yet_hddt = { info_iter }.all(|(_, mods)| {
+        mods.contains(Mods::HIDDEN | Mods::HARD_ROCK) || mods.contains(Mods::FLASHLIGHT)
+    });
+    ShouldFetchMore {
+        no_normal_fc,
+        not_yet_hddt,
+    }
 }
 
 fn get_scores_for(
@@ -426,7 +436,7 @@ fn get_scores_for(
                 fetched: false,
                 len: value.scores.len(),
                 no_more_scores: value.no_more_scores,
-                is_interesting: is_interesting(&value.scores),
+                should_fetch_more: should_fetch_more(&value.scores),
             });
         }
     }
@@ -438,7 +448,7 @@ fn get_scores_for(
             .request_text(&mut api.client)?;
         Ok(serde_json::from_str(&text).context("malformed JSON")?)
     });
-    let is_interesting = is_interesting(&scores);
+    let should_fetch_more = should_fetch_more(&scores);
     let len = scores.len();
     let no_more_scores = len < num_scores;
     cache.set(
@@ -453,7 +463,7 @@ fn get_scores_for(
         fetched: true,
         len,
         no_more_scores,
-        is_interesting,
+        should_fetch_more,
     })
 }
 
@@ -461,6 +471,7 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
     validate_game_mode_str(&args.game_mode)?;
     let num_scores = args.num_scores.unwrap_or(1);
     let more_num_scores = args.more_num_scores.unwrap_or(10);
+    let more_more_num_scores = args.more_more_num_scores.unwrap_or(100);
     let mut api = api_client()?;
     let cache = scores_cache()?;
     let mut count = 0;
@@ -490,23 +501,22 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
             if summary.fetched {
                 fetch_count += 1;
                 println!(
-                    "{} {}: {} scores{}",
+                    "{} {}: {} scores",
                     count,
                     beatmap_title(&beatmap),
                     summary.len,
-                    if summary.is_interesting {
-                        " (interesting)"
-                    } else {
-                        ""
-                    },
                 );
                 sleep_secs(2);
             }
             Ok(summary)
         };
 
-        if fetch(num_scores)?.is_interesting {
-            fetch(more_num_scores)?;
+        let result1 = fetch(num_scores)?;
+        if result1.should_fetch_more.no_normal_fc || result1.should_fetch_more.not_yet_hddt {
+            let result2 = fetch(more_num_scores)?;
+            if result2.should_fetch_more.not_yet_hddt {
+                fetch(more_more_num_scores)?;
+            }
         }
 
         Ok(())
