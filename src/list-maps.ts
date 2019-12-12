@@ -396,7 +396,7 @@ function initUnsortedTableRows() {
                         .attr('href', `javascript:toggleMusic("https://b.ppy.sh/preview/${row.beatmapset_id}.mp3")`),
                     $('<a><i class="fa fa-download">')
                         .attr('target', '_blank')
-                        .attr('href', `https://osu.ppy.sh/d/${row.beatmapset_id}n`),
+                        .attr('href', `https://osu.ppy.sh/beatmapsets/${row.beatmapset_id}/download?noVideo=1`),
                     $('<a><i class="fa fa-cloud-download">')
                         .attr('href', `osu://dl/${row.beatmapset_id}`)
                 ]) : $()
