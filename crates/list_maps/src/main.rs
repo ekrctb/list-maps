@@ -51,6 +51,8 @@ enum App {
     ShowBeatmap(ShowBeatmap),
     #[structopt(name = "show-db-stat")]
     ShowDbStat(ShowDbStat),
+    #[structopt(name = "compute-map-stat")]
+    ComputeMapStat(ComputeMapStat),
 }
 
 #[derive(Debug, StructOpt)]
@@ -124,6 +126,18 @@ struct ShowBeatmap {}
 
 #[derive(Debug, StructOpt)]
 struct ShowDbStat {}
+
+#[derive(Debug, StructOpt)]
+struct ComputeMapStat {
+    #[structopt(long = "min-stars", default_value = "0")]
+    min_stars: f64,
+    #[structopt(long = "include-loved")]
+    include_loved: bool,
+    #[structopt(long = "game-mode", default_value = "2")]
+    game_mode: String,
+    #[structopt(long = "include-converts")]
+    include_converts: Option<bool>,
+}
 
 fn reqwest_client() -> Fallible<Client> {
     use reqwest::header;
@@ -1021,6 +1035,30 @@ fn show_db_stat(_args: &ShowDbStat) -> Fallible<()> {
     Ok(())
 }
 
+fn compute_map_stat(args: &ComputeMapStat) -> Fallible<()> {
+    let include_converts = args.include_converts.unwrap_or(true);
+    let mut count = 0u64;
+    let mut total_length = 0.0;
+    let mut hit_length = 0.0;
+    each_filtered_map(args.min_stars, |beatmap| {
+        if !args.include_loved && (beatmap.approved != "1" && beatmap.approved != "2") {
+            return Ok(());
+        }
+        if beatmap.mode != args.game_mode && !(include_converts && beatmap.mode == "0") {
+            return Ok(());
+        }
+        count += 1;
+        total_length += f64::from_str(&beatmap.total_length).context("total_length")?;
+        hit_length += f64::from_str(&beatmap.hit_length).context("hit_length")?;
+        Ok(())
+    })?;
+    println!("Beatmap statistics for min_stars = {}", args.min_stars);
+    println!("count = {}", count);
+    println!("total_length = {}", total_length);
+    println!("hit_length = {}", hit_length);
+    Ok(())
+}
+
 fn main() {
     match App::from_args() {
         App::GetMaps(args) => get_maps(&args),
@@ -1030,6 +1068,7 @@ fn main() {
         App::FindScores(args) => find_scores(&args),
         App::ShowBeatmap(args) => show_beatmap(&args),
         App::ShowDbStat(args) => show_db_stat(&args),
+        App::ComputeMapStat(args) => compute_map_stat(&args),
     }
     .unwrap_or_else(|e| {
         for cause in e.iter_chain() {
