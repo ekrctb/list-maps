@@ -958,7 +958,7 @@ fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
     let length = i32::from_str(&beatmap.hit_length)?;
 
     Ok(format!(
-        r#"=HYPERLINK("https://osu.ppy.sh/beatmapsets/{}#fruits/{}","{}")   {}  {}  {}:{:02}"#,
+        "=HYPERLINK(\"https://osu.ppy.sh/beatmapsets/{}#fruits/{}\",\"{}\")\t{}\t{}\t{}:{:02}",
         &beatmap.beatmapset_id,
         &beatmap.beatmap_id,
         beatmap_title(&beatmap),
