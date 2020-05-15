@@ -588,79 +588,98 @@ class BeatmapInfo {
     }
 }
 
-function readBeatmap(sr: SerializationReader) {
-    const SizeInBytes = sr.readInt32();
+function readBeatmap(sr: SerializationReader, dbVersion: number) {
+    const ver1 = dbVersion < 20140609;
+    const ver2 = !ver1 && dbVersion < 20191106;
+    const ver3 = !ver2;
 
-    const Artist = sr.readString();
-    const ArtistUnicode = sr.readString();
-    const Title = sr.readString();
-    const TitleUnicode = sr.readString();
-    const Creator = sr.readString();
-    const Version = sr.readString();
-    const AudioFilename = sr.readString();
-    const BeatmapChecksum = sr.readString();
-    const Filename = sr.readString();
-    const SubmissionStatus = sr.readByte();
-    const countNormal = sr.readUInt16();
-    const countSlider = sr.readUInt16();
-    const countSpinner = sr.readUInt16();
-    const DateModified = sr.readDateTime();
+    if (!ver3) sr.readInt32();
 
-    const DifficultyApproachRate = sr.readSingle();
-    const DifficultyCircleSize = sr.readSingle();
-    const DifficultyHpDrainRate = sr.readSingle();
-    const DifficultyOverall = sr.readSingle();
+    sr.readString();    // artist name
+    sr.readString();    // artist name unicode
+    sr.readString();    // song title
+    sr.readString();    // song title unicode
+    sr.readString();    // creator name
+    sr.readString();    // difficulty
+    sr.readString();    // audio file name
+    sr.readString();    // hash
+    sr.readString();    // beatmap file name
+    sr.readByte();      // ranked status
+    sr.readUInt16();
+    sr.readUInt16();
+    sr.readUInt16();
+    sr.readDateTime();  // last modified
 
-    const DifficultySliderMultiplier = sr.readDouble();
+    sr.readSingle();
+    sr.readSingle();
+    sr.readSingle();
+    sr.readSingle();
 
-    for (let i = 0; i < 4; i += 1) {
-        sr.readList(() => {
-            sr.readInt32();
-            sr.readInt16();
-            sr.readDouble();
-        });
+    sr.readDouble();
+
+    if (!ver1) {
+        for (let i = 0; i < 4; i += 1) {
+            sr.readList(() => {
+                sr.readInt32();
+                sr.readInt16();
+                sr.readDouble();
+            });
+        }
     }
 
-    const DrainLength = sr.readInt32();
-    const TotalLength = sr.readInt32();
-    const PreviewTime = sr.readInt32();
-    sr.readList(() => {
-        const BeatLength = sr.readDouble();
-        const Offset = sr.readDouble();
-        const TimingChange = sr.readBoolean();
-    });
-    const BeatmapId = sr.readInt32();
-    const BeatmapSetId = sr.readInt32();
-    const BeatmapTopicId = sr.readInt32();
-    const PlayerRankOsu = sr.readByte();
-    const PlayerRankFruits = sr.readByte();
-    const PlayerRankTaiko = sr.readByte();
-    const PlayerRankMania = sr.readByte();
-    const PlayerOffset = sr.readInt16();
-    const StackLeniency = sr.readSingle();
-    const PlayMode = sr.readByte();
-    const Source = sr.readString();
-    const Tags = sr.readString();
-    const OnlineOffset = sr.readInt16();
-    const OnlineDisplayTitle = sr.readString();
-    const NewFile = sr.readBoolean();
-    const DateLastPlayed = sr.readDateTime();
-    const InOszContainer = sr.readBoolean();
-    const ContainingFolderAbsolute = sr.readString();
-    const LastInfoUpdate = sr.readDateTime();
-    const DisableSamples = sr.readBoolean();
-    const DisableSkin = sr.readBoolean();
-    const DisableStoryboard = sr.readBoolean();
-    const DisableVideo = sr.readBoolean();
-    const VisualSettingsOverride = sr.readBoolean();
+    sr.readInt32();
+    sr.readInt32();
+    sr.readInt32();
 
-    const LastEditTime = sr.readInt32();
-    const ManiaSpeed = sr.readByte();
+    // timing points
+    sr.readList(() => {
+        sr.readDouble();
+        sr.readDouble();
+        sr.readBoolean();
+    });
+
+    const beatmapId = sr.readInt32(); // beatmap id
+    sr.readInt32(); // beatmap set id
+    sr.readInt32(); // thread id
+
+    // Note: wiki has wrong information
+    sr.readByte();
+    const osuCatchRankAchieved = sr.readByte();
+    sr.readByte();
+    sr.readByte();
+
+    sr.readInt16();
+    sr.readSingle();
+    sr.readByte();
+
+    sr.readString();
+    sr.readString();
+
+    sr.readInt16();
+    sr.readString();
+
+    sr.readBoolean();   // is unplayed
+    const lastPlayed = sr.readDateTime();
+
+    sr.readBoolean();
+    sr.readString();
+    sr.readDateTime();
+
+    sr.readBoolean();
+    sr.readBoolean();
+    sr.readBoolean();
+    sr.readBoolean();
+    sr.readBoolean();
+
+    if (ver1) sr.readInt16();
+
+    sr.readInt32();
+    sr.readByte();
 
     return new BeatmapInfo(
-        BeatmapId,
-        new Date(Math.max(MINIMUM_DATE.valueOf(), DateLastPlayed.valueOf())),
-        PlayerRankFruits);
+        beatmapId,
+        new Date(Math.max(MINIMUM_DATE.valueOf(), lastPlayed.valueOf())),
+        osuCatchRankAchieved);
 }
 
 const beatmapInfoMap = new Map<number, BeatmapInfo>();
@@ -668,12 +687,15 @@ let beatmapInfoMapVersion = MINIMUM_DATE;
 
 function loadOsuDB(buffer: ArrayBuffer, timestamp: Date) {
     const sr = new SerializationReader(buffer);
-    sr.skip(4 + 4 + 1 + 8);
+    const dbVersion = sr.readInt32();
+    sr.readInt32();
+    sr.readBoolean();
+    sr.readDateTime();
     sr.readString();
     const beatmapCount = sr.readInt32();
 
     for (let i = 0; i < beatmapCount; i += 1) {
-        let beatmap = readBeatmap(sr);
+        let beatmap = readBeatmap(sr, dbVersion);
         if (beatmap.beatmapId > 0) {
             let existing = beatmapInfoMap.get(beatmap.beatmapId);
             if (existing) {
