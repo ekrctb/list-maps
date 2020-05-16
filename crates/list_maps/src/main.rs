@@ -12,7 +12,7 @@ extern crate structopt;
 use chrono::prelude::*;
 use failure::{Fallible, ResultExt};
 use osu_api::{
-    data::{self, Beatmap, Score},
+    data::{self, Beatmap, Mods, Score},
     OsuApi,
 };
 use reqwest::Client;
@@ -20,7 +20,6 @@ use serde_derive::*;
 use serde_json::value::RawValue;
 use std::{
     collections::HashMap,
-    convert::TryFrom,
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
@@ -91,12 +90,10 @@ struct GetScores {
     cache_expire: Option<DateTime<Utc>>,
     #[structopt(long = "ranked-date-start")]
     approved_date_start: Option<DateTime<Utc>>,
-    #[structopt(long = "num-scores")]
-    num_scores: Option<usize>,
-    #[structopt(long = "more-num-scores")]
-    more_num_scores: Option<usize>,
-    #[structopt(long = "more-more-num-scores")]
-    more_more_num_scores: Option<usize>,
+    #[structopt(long = "num-scores", default_value = "3")]
+    num_scores: i32,
+    #[structopt(long = "num-dt-scores", default_value = "3")]
+    num_dt_scores: i32,
 }
 
 #[derive(Debug, StructOpt)]
@@ -380,6 +377,8 @@ struct ScoreCacheValue {
     pub scores: Vec<Box<RawValue>>,
     #[serde(default)]
     pub no_more_scores: bool,
+    #[serde(default)]
+    pub dt_scores: Vec<Box<RawValue>>,
 }
 
 fn validate_game_mode_str(game_mode: &str) -> Fallible<()> {
@@ -387,110 +386,39 @@ fn validate_game_mode_str(game_mode: &str) -> Fallible<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone)]
-struct LeaderboardSummary {
-    fetched: bool,
-    len: usize,
-    no_more_scores: bool,
-    should_fetch_more: ShouldFetchMore,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ShouldFetchMoreInfo<'a> {
-    #[serde(borrow)]
-    pub perfect: &'a str,
-    #[serde(borrow)]
-    pub enabled_mods: &'a str,
-}
-
-#[derive(Debug, Clone)]
-struct ShouldFetchMore {
-    no_normal_fc: bool,
-    not_yet_hddt: bool,
-}
-
-fn should_fetch_more(scores: &[Box<RawValue>]) -> ShouldFetchMore {
-    use data::Mods;
-    let info_iter = scores.iter().filter_map(|score| {
-        let x = serde_json::from_str::<ShouldFetchMoreInfo>(score.get()).ok()?;
-        Some((
-            x.perfect == "1",
-            data::mods_from_str(x.enabled_mods).ok()? & Mods::CATCH_DIFFICULTY_MASK,
-        ))
-    });
-    let no_normal_fc = info_iter.clone().all(|(is_fc, mods)| {
-        !is_fc
-            || (mods != Mods::empty()
-                && mods != Mods::HIDDEN
-                && mods != Mods::HARD_ROCK
-                && mods != Mods::HIDDEN | Mods::HARD_ROCK)
-    });
-    let not_yet_hddt = { info_iter }.all(|(_, mods)| {
-        mods.contains(Mods::HIDDEN | Mods::HARD_ROCK) || mods.contains(Mods::FLASHLIGHT)
-    });
-    ShouldFetchMore {
-        no_normal_fc,
-        not_yet_hddt,
-    }
+#[derive(Default)]
+struct Scores {
+    pub scores: Vec<Box<RawValue>>,
+    pub no_more_scores: bool,
 }
 
 fn get_scores_for(
-    beatmap: &Beatmap,
+    beatmap_id: &str,
     game_mode: &str,
-    num_scores: usize,
-    cache: &sled::Db,
-    cache_expire: Option<DateTime<Utc>>,
+    mods: Option<Mods>,
+    num_scores: i32,
     api: &mut ApiClient,
-) -> Fallible<LeaderboardSummary> {
-    let key = cache_key(&beatmap.beatmap_id, game_mode);
-    if let Some(value) = cache.get(&key)? {
-        let value: ScoreCacheValue =
-            serde_json::from_slice(&value).context("db content malformed")?;
-        let unexpired = match cache_expire {
-            Some(dt) => value.update_date >= dt,
-            None => true,
-        };
-        if unexpired && (value.no_more_scores || value.scores.len() >= num_scores) {
-            return Ok(LeaderboardSummary {
-                fetched: false,
-                len: value.scores.len(),
-                no_more_scores: value.no_more_scores,
-                should_fetch_more: should_fetch_more(&value.scores),
-            });
-        }
-    }
-    let update_date = Utc::now();
+) -> Fallible<Scores> {
     let scores: Vec<Box<RawValue>> = retry_forever("get_scores", || {
-        let text = osu_api::GetScores::new(api.key.clone(), beatmap.beatmap_id.clone())
-            .mode(game_mode.clone())
-            .limit(i32::try_from(num_scores).unwrap())
-            .request_text(&mut api.client)?;
+        let mut request = osu_api::GetScores::new(&api.key, beatmap_id);
+        request.mode(game_mode);
+        if let Some(mods) = mods {
+            request.mods(mods.bits() as i32);
+        }
+        request.limit(num_scores);
+        let text = request.request_text(&mut api.client)?;
         Ok(serde_json::from_str(&text).context("malformed JSON")?)
     });
-    let should_fetch_more = should_fetch_more(&scores);
-    let len = scores.len();
-    let no_more_scores = len < num_scores;
-    cache.set(
-        &key,
-        serde_json::to_vec(&ScoreCacheValue {
-            update_date,
-            scores,
-            no_more_scores,
-        })?,
-    )?;
-    Ok(LeaderboardSummary {
-        fetched: true,
-        len,
+    let no_more_scores = (scores.len() as i32) < num_scores;
+    Ok(Scores {
+        scores,
         no_more_scores,
-        should_fetch_more,
     })
 }
 
 fn get_scores(args: &GetScores) -> Fallible<()> {
     validate_game_mode_str(&args.game_mode)?;
-    let num_scores = args.num_scores.unwrap_or(1);
-    let more_num_scores = args.more_num_scores.unwrap_or(10);
-    let more_more_num_scores = args.more_more_num_scores.unwrap_or(100);
+
     let mut api = api_client()?;
     let cache = scores_cache()?;
     let mut count = 0;
@@ -508,35 +436,63 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
                 }
             }
         }
-        let mut fetch = |num| -> Fallible<LeaderboardSummary> {
-            let summary = get_scores_for(
-                beatmap,
-                &args.game_mode,
-                num,
-                &cache,
-                args.cache_expire,
-                &mut api,
-            )?;
-            if summary.fetched {
-                fetch_count += 1;
-                println!(
-                    "{} {}: {} scores",
-                    count,
-                    beatmap_title(&beatmap),
-                    summary.len,
-                );
-                sleep_secs(2);
-            }
-            Ok(summary)
-        };
 
-        let result1 = fetch(num_scores)?;
-        if result1.should_fetch_more.no_normal_fc || result1.should_fetch_more.not_yet_hddt {
-            let result2 = fetch(more_num_scores)?;
-            if result2.should_fetch_more.not_yet_hddt {
-                fetch(more_more_num_scores)?;
+        let key = cache_key(&beatmap.beatmap_id, &args.game_mode);
+        if let Some(value) = cache.get(&key)? {
+            let value: ScoreCacheValue =
+                serde_json::from_slice(&value).context("db content malformed")?;
+            let unexpired = match args.cache_expire {
+                Some(dt) => value.update_date >= dt,
+                None => true,
+            };
+            if unexpired {
+                return Ok(());
             }
         }
+
+        let mut fetch = |mods, num_scores| -> Fallible<Scores> {
+            if num_scores <= 0 {
+                return Ok(Scores::default());
+            }
+
+            let scores = get_scores_for(
+                &beatmap.beatmap_id,
+                &args.game_mode,
+                mods,
+                num_scores,
+                &mut api,
+            )?;
+
+            fetch_count += 1;
+            println!(
+                "{} {} {}: {} scores",
+                count,
+                beatmap_title(&beatmap),
+                mods.map(|mods| mod_names(mods).concat())
+                    .unwrap_or("".to_string()),
+                scores.scores.len(),
+            );
+            sleep_secs(2);
+
+            Ok(scores)
+        };
+
+        let update_date = Utc::now();
+
+        let all_mods = fetch(None, args.num_scores)?;
+        let dt = fetch(Some(Mods::DOUBLE_TIME), args.num_dt_scores)?;
+        let hddt = fetch(Some(Mods::DOUBLE_TIME | Mods::HIDDEN), args.num_dt_scores)?;
+
+        let dt_scores = dt.scores.into_iter().chain(hddt.scores).collect();
+
+        let cache_value = ScoreCacheValue {
+            update_date,
+            scores: all_mods.scores,
+            no_more_scores: all_mods.no_more_scores,
+            dt_scores,
+        };
+
+        cache.set(&key, serde_json::to_vec(&cache_value)?)?;
 
         Ok(())
     })?;
@@ -595,8 +551,7 @@ fn calc_pp(
     }
 }
 
-fn get_fc_level(fc_count: &HashMap<data::Mods, i32>, min_misses: i32) -> i32 {
-    use osu_api::data::Mods;
+fn get_fc_level(fc_count: &HashMap<Mods, i32>, min_misses: i32) -> i32 {
     let get = |mods| fc_count.get(&mods).cloned().unwrap_or(0);
     let get_contains = |mods| -> i32 {
         fc_count
@@ -665,8 +620,8 @@ fn beatmap_summary(
                 i
             ),
         };
-        let mods = data::mods_from_str(&score.enabled_mods)? & data::Mods::CATCH_DIFFICULTY_MASK;
-        if mods.contains(data::Mods::HALF_TIME) {
+        let mods = data::mods_from_str(&score.enabled_mods)? & Mods::CATCH_DIFFICULTY_MASK;
+        if mods.contains(Mods::HALF_TIME) {
             continue;
         }
         min_misses = min_misses.min(i32::from_str(&score.countmiss)?);
@@ -707,6 +662,7 @@ fn each_filtered_map_with_scores(
 ) -> Fallible<u64> {
     let cache = scores_cache()?;
     let mut no_scores = true;
+    let mut num_skipped = 0;
 
     let all_maps = each_filtered_map(min_stars, |beatmap| {
         let (scores, update_date) = match cache.get(&cache_key(&beatmap.beatmap_id, game_mode))? {
@@ -714,19 +670,24 @@ fn each_filtered_map_with_scores(
                 no_scores = false;
                 let value: ScoreCacheValue =
                     serde_json::from_slice(&value).context("db content is malformed")?;
-                (value.scores, value.update_date)
+                let scores: Vec<_> = value.scores.into_iter().chain(value.dt_scores).collect();
+                (scores, value.update_date)
             }
             None => {
-                eprintln!(
-                    "Beatmap {} skipped: scores have not downloaded.",
-                    &beatmap.beatmap_id
-                );
+                num_skipped += 1;
                 return Ok(());
             }
         };
 
         f(beatmap, &scores, &update_date)
     })?;
+
+    if num_skipped != 0 {
+        eprintln!(
+            "{} beatmaps skipped: scores have not downloaded.",
+            num_skipped
+        );
+    }
 
     if no_scores {
         failure::bail!("No scores found. First run `list-maps get-scores'.")
@@ -790,8 +751,7 @@ fn calc_accuracy(score: &Score) -> Fallible<f64> {
     Ok(100.0 * (c300 + c100 + c50) / (c300 + c100 + c50 + ckatu + cmiss))
 }
 
-fn mod_names(mods: data::Mods) -> Vec<&'static str> {
-    use osu_api::data::Mods;
+fn mod_names(mods: Mods) -> Vec<&'static str> {
     let mut names = Vec::new();
     if mods.contains(Mods::NO_FAIL) {
         names.push("NF");
@@ -920,7 +880,6 @@ fn score_display(beatmap: &Beatmap, score: &Score, index: usize) -> Fallible<Str
 }
 
 fn find_scores(args: &FindScores) -> Fallible<()> {
-    use osu_api::data::Mods;
     // Finding criteria are hardcoded for now.
     // Find high-AR DT ranked FCs.
     each_filtered_map_with_scores(4.0, "2", |beatmap, scores, _| {
