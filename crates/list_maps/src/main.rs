@@ -52,6 +52,8 @@ enum App {
     ShowDbStat(ShowDbStat),
     #[structopt(name = "compute-map-stat")]
     ComputeMapStat(ComputeMapStat),
+    #[structopt(name = "compare-diff-calc")]
+    CompareDiffCalc(CompareDiffCalc),
 }
 
 #[derive(Debug, StructOpt)]
@@ -135,6 +137,9 @@ struct ComputeMapStat {
     #[structopt(long = "include-converts")]
     include_converts: Option<bool>,
 }
+
+#[derive(Debug, StructOpt)]
+struct CompareDiffCalc {}
 
 fn reqwest_client() -> Fallible<Client> {
     use reqwest::header;
@@ -520,7 +525,14 @@ struct CalculatedPp {
     pub hdfl: f64,
 }
 
+#[derive(Ord, PartialOrd, Eq, PartialEq)]
+pub enum PPVer {
+    V1,
+    V2,
+}
+
 fn calc_pp(
+    ver: PPVer,
     stars: f64,
     approach_rate: f64,
     max_combo: f64,
@@ -530,14 +542,19 @@ fn calc_pp(
 ) -> CalculatedPp {
     let mut pp = f64::powf(5.0 * f64::max(1.0, stars / 0.0049) - 4.0, 2.0) / 100_000.0;
 
-    let mut length_bonus = 0.95 + 0.3 * f64::min(1.0, max_combo / 2500.0);
-    if max_combo > 2500.0 {
-        length_bonus += (max_combo / 2500.0).log10() * 0.475;
+    let (lb_mul, lb_threshold) = match ver {
+        PPVer::V1 => ((0.4, 0.5), 3000.0),
+        PPVer::V2 => ((0.3, 0.475), 2500.0),
+    };
+
+    let mut length_bonus = 0.95 + lb_mul.0 * f64::min(1.0, max_combo / lb_threshold);
+    if max_combo > lb_threshold {
+        length_bonus += (max_combo / lb_threshold).log10() * lb_mul.1;
     }
     pp *= length_bonus;
 
     let mut ar_bonus = 1.0;
-    if approach_rate > 10.0 {
+    if ver >= PPVer::V2 && approach_rate > 10.0 {
         ar_bonus += 0.1 * (approach_rate - 10.0);
     }
     if approach_rate > 9.0 {
@@ -554,12 +571,16 @@ fn calc_pp(
     }
     pp *= f64::powf(accuracy / 100.0, 5.5);
 
-    let mut hd_bonus = 1.0;
-    if approach_rate > 10.0 {
-        hd_bonus += 0.01 + 0.04 * (11.0 - approach_rate);
-    } else {
-        hd_bonus += 0.05 + 0.075 * (10.0 - approach_rate);
-    }
+    let hd_bonus = match ver {
+        PPVer::V1 => 1.05 + 0.075 * (10.0 - f64::min(10.0, approach_rate)),
+        PPVer::V2 => {
+            if approach_rate > 10.0 {
+                1.01 + 0.04 * (11.0 - approach_rate)
+            } else {
+                1.05 + 0.075 * (10.0 - approach_rate)
+            }
+        }
+    };
 
     let fl_bonus = 1.35 * length_bonus;
 
@@ -576,7 +597,6 @@ struct BeatmapDifficulty {
     approach_rate: f64,
     circle_size: f64,
     max_combo: f64,
-    ss_pp: CalculatedPp,
     hit_length: f64,
     total_length: f64,
 }
@@ -585,8 +605,7 @@ fn beatmap_difficulty(beatmap: &Beatmap) -> Fallible<BeatmapDifficulty> {
     let stars = beatmap_stars(beatmap);
     let approach_rate = f64::from_str(&beatmap.diff_approach)?;
     let circle_size = f64::from_str(&beatmap.diff_size)?;
-    let max_combo = max_combo(&beatmap)?;
-    let ss_pp = calc_pp(stars, approach_rate, max_combo, max_combo, 100.0, 0.0);
+    let max_combo = max_combo(&beatmap).unwrap_or(0.0);
     let hit_length = f64::from_str(&beatmap.hit_length)?;
     let total_length = f64::from_str(&beatmap.total_length)?;
     Ok(BeatmapDifficulty {
@@ -594,7 +613,6 @@ fn beatmap_difficulty(beatmap: &Beatmap) -> Fallible<BeatmapDifficulty> {
         approach_rate,
         circle_size,
         max_combo,
-        ss_pp,
         hit_length,
         total_length,
     })
@@ -680,6 +698,15 @@ fn beatmap_summary(
     }
 
     let diff = beatmap_difficulty(&beatmap)?;
+    let ss_pp = calc_pp(
+        PPVer::V2,
+        diff.stars,
+        diff.approach_rate,
+        diff.max_combo,
+        diff.max_combo,
+        100.0,
+        0.0,
+    );
     Ok(serde_json::json!([
         i8::from_str(&beatmap.approved)?,
         beatmap
@@ -692,7 +719,7 @@ fn beatmap_summary(
         beatmap.beatmapset_id,
         beatmap_title(&beatmap),
         diff.stars,
-        diff.ss_pp.nm,
+        ss_pp.nm,
         diff.hit_length,
         diff.max_combo,
         diff.approach_rate,
@@ -835,12 +862,8 @@ fn mod_names(mods: Mods) -> Vec<&'static str> {
     names
 }
 
-fn max_combo(beatmap: &Beatmap) -> Fallible<f64> {
-    Ok(beatmap
-        .max_combo
-        .as_ref()
-        .ok_or_else(|| failure::err_msg("max_combo is null"))?
-        .parse()?)
+fn max_combo(beatmap: &Beatmap) -> Option<f64> {
+    beatmap.max_combo.as_ref().and_then(|s| s.parse().ok())
 }
 
 fn fc_or_miss_display(beatmap: &Beatmap, score: &Score) -> Fallible<String> {
@@ -850,7 +873,7 @@ fn fc_or_miss_display(beatmap: &Beatmap, score: &Score) -> Fallible<String> {
         format!(
             "{}/{}x {}m",
             score.maxcombo,
-            max_combo(&beatmap)?,
+            max_combo(&beatmap).unwrap_or(0.0),
             score.countmiss
         )
     })
@@ -1064,6 +1087,67 @@ fn compute_map_stat(args: &ComputeMapStat) -> Fallible<()> {
     Ok(())
 }
 
+fn compare_diff_calc(_args: &CompareDiffCalc) -> Fallible<()> {
+    let new_maps = beatmaps_cache()?;
+    let old_maps = beatmaps_cache_old().context("Cannot open beatmaps_old database")?;
+
+    let mut big_diff_maps = Vec::new();
+
+    for entry in old_maps.iter() {
+        let (key, old_entry) = entry.context("db")?;
+        let new_entry;
+
+        let old_map: Beatmap = serde_json::from_slice(&old_entry).context("db entry")?;
+
+        let new_map: Beatmap = match new_maps.get(&key)? {
+            None => {
+                eprintln!("Not found in the new DB: {}", beatmap_title(&old_map));
+                continue;
+            }
+            Some(entry) => {
+                new_entry = entry;
+                serde_json::from_slice(&new_entry).context("db entry")?
+            }
+        };
+
+        if new_map.approved != "1" && new_map.approved != "2" {
+            continue;
+        }
+
+        let old_diff = beatmap_difficulty(&old_map)?;
+        let new_diff = beatmap_difficulty(&new_map)?;
+
+        let ar = old_diff.approach_rate;
+        let stars = (old_diff.stars, new_diff.stars);
+        let combo = (old_diff.max_combo, new_diff.max_combo);
+
+        let old_pp = calc_pp(PPVer::V1, stars.0, ar, combo.0, combo.0, 100.0, 0.0);
+        let new_pp = calc_pp(PPVer::V2, stars.1, ar, combo.1, combo.1, 100.0, 0.0);
+
+        let old_pp = old_pp.nm;
+        let new_pp = new_pp.nm;
+        if (new_pp - old_pp).abs() > 100.0 {
+            big_diff_maps.push(((old_pp, new_pp), beatmap_title(&old_map)));
+        }
+    }
+
+    big_diff_maps.sort_by_key(|(pp, _)| ordered_float::NotNan::new(-(pp.0 - pp.1).abs()).unwrap());
+    use std::cmp::Ordering;
+    for &ord in &[Ordering::Less, Ordering::Greater] {
+        for (pp, title) in &big_diff_maps {
+            if pp.0.partial_cmp(&pp.1) != Some(ord) {
+                continue;
+            }
+
+            println!("{}: {:.0}pp -> {:.0}pp", title, pp.0, pp.1);
+        }
+
+        println!();
+    }
+
+    Ok(())
+}
+
 fn main() {
     match App::from_args() {
         App::GetMaps(args) => get_maps(&args),
@@ -1074,6 +1158,7 @@ fn main() {
         App::ShowBeatmap(args) => show_beatmap(&args),
         App::ShowDbStat(args) => show_db_stat(&args),
         App::ComputeMapStat(args) => compute_map_stat(&args),
+        App::CompareDiffCalc(args) => compare_diff_calc(&args),
     }
     .unwrap_or_else(|e| {
         for cause in e.iter_chain() {
