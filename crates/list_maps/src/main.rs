@@ -524,7 +524,7 @@ fn calc_pp(
     accuracy: f64,
     num_misses: f64,
 ) -> CalculatedPp {
-    let mut pp = f64::powf((5.0 * stars / 0.0049) - 4.0, 2.0) / 100_000.0;
+    let mut pp = f64::powf(5.0 * f64::max(1.0, stars / 0.0049) - 4.0, 2.0) / 100_000.0;
 
     let mut length_bonus = 0.95 + 0.3 * f64::min(1.0, max_combo / 2500.0);
     if max_combo > 2500.0 {
@@ -540,7 +540,7 @@ fn calc_pp(
         ar_bonus += 0.1 * (approach_rate - 9.0);
     }
     if approach_rate < 8.0 {
-        ar_bonus *= 0.025 * (8.0 - approach_rate);
+        ar_bonus += 0.025 * (8.0 - approach_rate);
     }
     pp *= ar_bonus;
 
