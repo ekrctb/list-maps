@@ -277,6 +277,10 @@ fn beatmaps_cache() -> Fallible<sled::Db> {
     Ok(sled::Db::start_default("db/beatmaps")?)
 }
 
+fn beatmaps_cache_old() -> Fallible<sled::Db> {
+    Ok(sled::Db::start_default("db/beatmaps_old")?)
+}
+
 fn get_maps(args: &GetMaps) -> Fallible<()> {
     let mut api = api_client()?;
     let cache = beatmaps_cache()?;
@@ -567,6 +571,35 @@ fn calc_pp(
     }
 }
 
+struct BeatmapDifficulty {
+    stars: f64,
+    approach_rate: f64,
+    circle_size: f64,
+    max_combo: f64,
+    ss_pp: CalculatedPp,
+    hit_length: f64,
+    total_length: f64,
+}
+
+fn beatmap_difficulty(beatmap: &Beatmap) -> Fallible<BeatmapDifficulty> {
+    let stars = beatmap_stars(beatmap);
+    let approach_rate = f64::from_str(&beatmap.diff_approach)?;
+    let circle_size = f64::from_str(&beatmap.diff_size)?;
+    let max_combo = max_combo(&beatmap)?;
+    let ss_pp = calc_pp(stars, approach_rate, max_combo, max_combo, 100.0, 0.0);
+    let hit_length = f64::from_str(&beatmap.hit_length)?;
+    let total_length = f64::from_str(&beatmap.total_length)?;
+    Ok(BeatmapDifficulty {
+        stars,
+        approach_rate,
+        circle_size,
+        max_combo,
+        ss_pp,
+        hit_length,
+        total_length,
+    })
+}
+
 fn get_fc_level(fc_count: &HashMap<Mods, i32>, min_misses: i32) -> i32 {
     let get = |mods| fc_count.get(&mods).cloned().unwrap_or(0);
     let get_contains = |mods| -> i32 {
@@ -645,10 +678,8 @@ fn beatmap_summary(
             fc_count.entry(mods).and_modify(|x| *x += 1).or_insert(1);
         }
     }
-    let stars = beatmap_stars(beatmap);
-    let approach_rate = f64::from_str(&beatmap.diff_approach)?;
-    let max_combo = max_combo(&beatmap)?;
-    let pp = calc_pp(stars, approach_rate, max_combo, max_combo, 100.0, 0.0);
+
+    let diff = beatmap_difficulty(&beatmap)?;
     Ok(serde_json::json!([
         i8::from_str(&beatmap.approved)?,
         beatmap
@@ -660,12 +691,12 @@ fn beatmap_summary(
         beatmap.beatmap_id,
         beatmap.beatmapset_id,
         beatmap_title(&beatmap),
-        stars,
-        pp.nm,
-        f64::from_str(&beatmap.hit_length)?,
-        max_combo,
-        approach_rate,
-        f64::from_str(&beatmap.diff_size)?,
+        diff.stars,
+        diff.ss_pp.nm,
+        diff.hit_length,
+        diff.max_combo,
+        diff.approach_rate,
+        diff.circle_size,
         get_fc_level(&fc_count, min_misses),
         format!("{}", update_date.format("%F")),
     ]))
@@ -942,19 +973,17 @@ fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
     let beatmap = beatmaps
         .first()
         .ok_or_else(|| failure::err_msg("Beatmap not found"))?;
-    let stars = beatmap_stars(beatmap);
-    let approach_rate = f64::from_str(&beatmap.diff_approach)?;
-    let length = i32::from_str(&beatmap.hit_length)?;
+    let diff = beatmap_difficulty(&beatmap)?;
 
     Ok(format!(
         "=HYPERLINK(\"https://osu.ppy.sh/beatmapsets/{}#fruits/{}\",\"{}\")\t{}\t{}\t{}:{:02}",
         &beatmap.beatmapset_id,
         &beatmap.beatmap_id,
         beatmap_title(&beatmap),
-        stars,
-        approach_rate,
-        length / 60,
-        length % 60,
+        diff.stars,
+        diff.approach_rate,
+        (diff.hit_length as i64) / 60,
+        (diff.hit_length as i64) % 60,
     ))
 }
 
@@ -1023,8 +1052,9 @@ fn compute_map_stat(args: &ComputeMapStat) -> Fallible<()> {
             return Ok(());
         }
         count += 1;
-        total_length += f64::from_str(&beatmap.total_length).context("total_length")?;
-        hit_length += f64::from_str(&beatmap.hit_length).context("hit_length")?;
+        let diff = beatmap_difficulty(&beatmap)?;
+        total_length += diff.total_length;
+        hit_length += diff.hit_length;
         Ok(())
     })?;
     println!("Beatmap statistics for min_stars = {}", args.min_stars);
