@@ -525,24 +525,40 @@ fn calc_pp(
     num_misses: f64,
 ) -> CalculatedPp {
     let mut pp = f64::powf((5.0 * stars / 0.0049) - 4.0, 2.0) / 100_000.0;
-    let mut length_bonus = 0.95 + 0.4 * f64::min(1.0, max_combo / 3000.0);
-    if max_combo > 3000.0 {
-        length_bonus += (max_combo / 3000.0).log10() * 0.5;
+
+    let mut length_bonus = 0.95 + 0.3 * f64::min(1.0, max_combo / 2500.0);
+    if max_combo > 2500.0 {
+        length_bonus += (max_combo / 2500.0).log10() * 0.475;
     }
     pp *= length_bonus;
+
+    let mut ar_bonus = 1.0;
+    if approach_rate > 10.0 {
+        ar_bonus += 0.1 * (approach_rate - 10.0);
+    }
+    if approach_rate > 9.0 {
+        ar_bonus += 0.1 * (approach_rate - 9.0);
+    }
+    if approach_rate < 8.0 {
+        ar_bonus *= 0.025 * (8.0 - approach_rate);
+    }
+    pp *= ar_bonus;
+
     pp *= f64::powf(0.97, num_misses);
     if max_combo > 0.0 {
         pp *= f64::powf(combo / max_combo, 0.8);
     }
-    if approach_rate > 9.0 {
-        pp *= 1.0 + 0.1 * (approach_rate - 9.0);
-    }
-    if approach_rate < 8.0 {
-        pp *= 1.0 + 0.025 * (8.0 - approach_rate);
-    }
     pp *= f64::powf(accuracy / 100.0, 5.5);
-    let hd_bonus = 1.05 + 0.075 * (10.0 - f64::min(10.0, approach_rate));
+
+    let mut hd_bonus = 1.0;
+    if approach_rate > 10.0 {
+        hd_bonus += 0.01 + 0.04 * (11.0 - approach_rate);
+    } else {
+        hd_bonus += 0.05 + 0.075 * (10.0 - approach_rate);
+    }
+
     let fl_bonus = 1.35 * length_bonus;
+
     CalculatedPp {
         nm: pp,
         hd: pp * hd_bonus,
