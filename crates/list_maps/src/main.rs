@@ -1,16 +1,5 @@
-extern crate chrono;
-extern crate failure;
-extern crate osu_api;
-extern crate regex;
-extern crate reqwest;
-extern crate serde;
-extern crate serde_derive;
-extern crate serde_json;
-extern crate sled;
-extern crate structopt;
-
+use anyhow::Context;
 use chrono::prelude::*;
-use failure::{Fallible, ResultExt};
 use osu_api::{
     data::{self, Beatmap, Mods, Score},
     OsuApi,
@@ -27,7 +16,7 @@ use std::{
 };
 use structopt::StructOpt;
 
-fn get_api_key() -> Fallible<String> {
+fn get_api_key() -> anyhow::Result<String> {
     Ok(std::fs::read_to_string("API_SECRET")
         .context("Failed to open API_SECRET file")?
         .trim()
@@ -141,7 +130,7 @@ struct ComputeMapStat {
 #[derive(Debug, StructOpt)]
 struct CompareDiffCalc {}
 
-fn reqwest_client() -> Fallible<Client> {
+fn reqwest_client() -> anyhow::Result<Client> {
     use reqwest::header;
     let mut headers = header::HeaderMap::new();
     headers.insert(
@@ -166,7 +155,7 @@ struct ApiClient {
     client: Client,
 }
 
-fn api_client() -> Fallible<ApiClient> {
+fn api_client() -> anyhow::Result<ApiClient> {
     let api_key = get_api_key()?;
     let client = reqwest_client()?;
     Ok(ApiClient {
@@ -179,7 +168,7 @@ fn sleep_secs(secs: u64) {
     std::thread::sleep(std::time::Duration::from_secs(secs));
 }
 
-fn retry_forever<T>(name: &str, mut f: impl FnMut() -> Fallible<T>) -> T {
+fn retry_forever<T>(name: &str, mut f: impl FnMut() -> anyhow::Result<T>) -> T {
     let mut try_count = 0;
     loop {
         match f() {
@@ -206,7 +195,7 @@ fn request_all_ranked_maps(
     include_converts: bool,
     start_date: Option<DateTime<Utc>>,
     end_date: Option<DateTime<Utc>>,
-) -> Fallible<()> {
+) -> anyhow::Result<()> {
     let include_converts = format!("{}", include_converts as u8);
     let beatmaps_limit = 500;
     let mut last_date = start_date.unwrap_or_else(|| Utc.ymd(2000, 1, 1).and_hms(0, 0, 0));
@@ -268,7 +257,7 @@ fn request_all_ranked_maps(
             if list_is_end {
                 return Ok(());
             } else {
-                failure::bail!("Cannot make a progress")
+                anyhow::bail!("Cannot make a progress")
             }
         }
 
@@ -278,15 +267,15 @@ fn request_all_ranked_maps(
     }
 }
 
-fn beatmaps_cache() -> Fallible<sled::Db> {
+fn beatmaps_cache() -> anyhow::Result<sled::Db> {
     Ok(sled::Db::start_default("db/beatmaps")?)
 }
 
-fn beatmaps_cache_old() -> Fallible<sled::Db> {
+fn beatmaps_cache_old() -> anyhow::Result<sled::Db> {
     Ok(sled::Db::start_default("db/beatmaps_old")?)
 }
 
-fn get_maps(args: &GetMaps) -> Fallible<()> {
+fn get_maps(args: &GetMaps) -> anyhow::Result<()> {
     let mut api = api_client()?;
     let cache = beatmaps_cache()?;
 
@@ -337,7 +326,7 @@ fn get_maps(args: &GetMaps) -> Fallible<()> {
     Ok(())
 }
 
-fn scores_cache() -> Fallible<sled::Db> {
+fn scores_cache() -> anyhow::Result<sled::Db> {
     Ok(sled::Db::start_default("db/scores")?)
 }
 
@@ -345,7 +334,10 @@ fn beatmap_stars(beatmap: &Beatmap) -> f64 {
     f64::from_str(&beatmap.difficultyrating).unwrap_or(0.0)
 }
 
-fn each_filtered_map(min_stars: f64, mut f: impl FnMut(&Beatmap) -> Fallible<()>) -> Fallible<u64> {
+fn each_filtered_map(
+    min_stars: f64,
+    mut f: impl FnMut(&Beatmap) -> anyhow::Result<()>,
+) -> anyhow::Result<u64> {
     let cache = beatmaps_cache()?;
 
     let mut all_maps = 0;
@@ -374,7 +366,7 @@ fn each_filtered_map(min_stars: f64, mut f: impl FnMut(&Beatmap) -> Fallible<()>
     }
 
     if all_maps == 0 {
-        failure::bail!("No maps found. First run `list-maps get-maps'.")
+        anyhow::bail!("No maps found. First run `list-maps get-maps'.")
     }
 
     Ok(all_maps)
@@ -390,7 +382,7 @@ struct ScoreCacheValue {
     pub dt_scores: Vec<Box<RawValue>>,
 }
 
-fn validate_game_mode_str(game_mode: &str) -> Fallible<()> {
+fn validate_game_mode_str(game_mode: &str) -> anyhow::Result<()> {
     let _ = data::game_mode_from_str(game_mode).context("Invalid game mode")?;
     Ok(())
 }
@@ -407,7 +399,7 @@ fn get_scores_for(
     mods: Option<Mods>,
     num_scores: i32,
     api: &mut ApiClient,
-) -> Fallible<Scores> {
+) -> anyhow::Result<Scores> {
     let scores: Vec<Box<RawValue>> = retry_forever("get_scores", || {
         let mut request = osu_api::GetScores::new(&api.key, beatmap_id);
         request.mode(game_mode);
@@ -425,7 +417,7 @@ fn get_scores_for(
     })
 }
 
-fn get_scores(args: &GetScores) -> Fallible<()> {
+fn get_scores(args: &GetScores) -> anyhow::Result<()> {
     validate_game_mode_str(&args.game_mode)?;
 
     let mut api = api_client()?;
@@ -459,7 +451,7 @@ fn get_scores(args: &GetScores) -> Fallible<()> {
             }
         }
 
-        let mut fetch = |mods, num_scores| -> Fallible<Scores> {
+        let mut fetch = |mods, num_scores| -> anyhow::Result<Scores> {
             if num_scores <= 0 {
                 return Ok(Scores::default());
             }
@@ -601,7 +593,7 @@ struct BeatmapDifficulty {
     total_length: f64,
 }
 
-fn beatmap_difficulty(beatmap: &Beatmap) -> Fallible<BeatmapDifficulty> {
+fn beatmap_difficulty(beatmap: &Beatmap) -> anyhow::Result<BeatmapDifficulty> {
     let stars = beatmap_stars(beatmap);
     let approach_rate = f64::from_str(&beatmap.diff_approach)?;
     let circle_size = f64::from_str(&beatmap.diff_size)?;
@@ -673,13 +665,13 @@ fn beatmap_summary(
     beatmap: &Beatmap,
     scores: &[Box<RawValue>],
     update_date: &DateTime<Utc>,
-) -> Fallible<serde_json::Value> {
+) -> anyhow::Result<serde_json::Value> {
     let mut fc_count = HashMap::new();
     let mut min_misses = 999;
     for (i, score) in scores.iter().enumerate() {
         let score: Score = match serde_json::from_str(score.get()) {
             Ok(x) => x,
-            Err(e) => failure::bail!(
+            Err(e) => anyhow::bail!(
                 "{}\n{}\nFailed to parse score (beatmap id = {}, index = {})",
                 e,
                 score.get(),
@@ -732,8 +724,8 @@ fn beatmap_summary(
 fn each_filtered_map_with_scores(
     min_stars: f64,
     game_mode: &str,
-    mut f: impl FnMut(&Beatmap, &[Box<RawValue>], &DateTime<Utc>) -> Fallible<()>,
-) -> Fallible<u64> {
+    mut f: impl FnMut(&Beatmap, &[Box<RawValue>], &DateTime<Utc>) -> anyhow::Result<()>,
+) -> anyhow::Result<u64> {
     let cache = scores_cache()?;
     let mut no_scores = true;
     let mut num_skipped = 0;
@@ -764,7 +756,7 @@ fn each_filtered_map_with_scores(
     }
 
     if no_scores {
-        failure::bail!("No scores found. First run `list-maps get-scores'.")
+        anyhow::bail!("No scores found. First run `list-maps get-scores'.")
     }
 
     Ok(all_maps)
@@ -774,7 +766,7 @@ fn output_rows<T: std::fmt::Display>(
     all_maps: u64,
     rows: impl IntoIterator<Item = T>,
     out_path: &std::path::Path,
-) -> Fallible<()> {
+) -> anyhow::Result<()> {
     println!("Writing to {}", out_path.display());
     let mut out = BufWriter::new(File::create(&out_path)?);
     writeln!(&mut out, "[")?;
@@ -792,7 +784,7 @@ fn output_rows<T: std::fmt::Display>(
     Ok(())
 }
 
-fn render_maps(args: &RenderMaps) -> Fallible<()> {
+fn render_maps(args: &RenderMaps) -> anyhow::Result<()> {
     validate_game_mode_str(&args.game_mode)?;
 
     let mut rows = Vec::new();
@@ -816,7 +808,7 @@ fn render_maps(args: &RenderMaps) -> Fallible<()> {
     output_rows(all_maps, rows.into_iter().map(|t| t.1), &args.out_path)
 }
 
-fn calc_accuracy(score: &Score) -> Fallible<f64> {
+fn calc_accuracy(score: &Score) -> anyhow::Result<f64> {
     let c300 = f64::from_str(&score.count300)?;
     let c100 = f64::from_str(&score.count100)?;
     let c50 = f64::from_str(&score.count50)?;
@@ -866,7 +858,7 @@ fn max_combo(beatmap: &Beatmap) -> Option<f64> {
     beatmap.max_combo.as_ref().and_then(|s| s.parse().ok())
 }
 
-fn fc_or_miss_display(beatmap: &Beatmap, score: &Score) -> Fallible<String> {
+fn fc_or_miss_display(beatmap: &Beatmap, score: &Score) -> anyhow::Result<String> {
     Ok(if score.perfect == "1" {
         "FC".to_string()
     } else {
@@ -879,7 +871,7 @@ fn fc_or_miss_display(beatmap: &Beatmap, score: &Score) -> Fallible<String> {
     })
 }
 
-fn ranking_row(beatmap: &Beatmap, score: &Score, pp: f64) -> Fallible<serde_json::Value> {
+fn ranking_row(beatmap: &Beatmap, score: &Score, pp: f64) -> anyhow::Result<serde_json::Value> {
     Ok(serde_json::json!([
         beatmap_stars(beatmap),
         pp,
@@ -895,7 +887,7 @@ fn ranking_row(beatmap: &Beatmap, score: &Score, pp: f64) -> Fallible<serde_json
     ]))
 }
 
-fn render_ranking(args: &RenderRanking) -> Fallible<()> {
+fn render_ranking(args: &RenderRanking) -> anyhow::Result<()> {
     validate_game_mode_str(&args.game_mode)?;
 
     let mut rows = Vec::new();
@@ -929,7 +921,7 @@ fn render_ranking(args: &RenderRanking) -> Fallible<()> {
     output_rows(all_maps, rows.into_iter().map(|t| t.1), &args.out_path)
 }
 
-fn score_display(beatmap: &Beatmap, score: &Score, index: usize) -> Fallible<String> {
+fn score_display(beatmap: &Beatmap, score: &Score, index: usize) -> anyhow::Result<String> {
     use std::fmt::Write;
     let mod_names = mod_names(data::mods_from_str(&score.enabled_mods)?);
     let mut buf = String::new();
@@ -949,7 +941,7 @@ fn score_display(beatmap: &Beatmap, score: &Score, index: usize) -> Fallible<Str
     Ok(buf)
 }
 
-fn find_scores(args: &FindScores) -> Fallible<()> {
+fn find_scores(args: &FindScores) -> anyhow::Result<()> {
     // Finding criteria are hardcoded for now.
     // Find high-AR DT ranked FCs.
     each_filtered_map_with_scores(4.0, "2", |beatmap, scores, _| {
@@ -987,7 +979,7 @@ fn find_scores(args: &FindScores) -> Fallible<()> {
     Ok(())
 }
 
-fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
+fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> anyhow::Result<String> {
     let beatmaps = osu_api::GetBeatmaps::new(&api.key)
         .beatmap_id(beatmap_id)
         .request_text(&mut api.client)
@@ -995,7 +987,7 @@ fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
     let beatmaps: Vec<Beatmap> = serde_json::from_str(&beatmaps).context("Broken JSON")?;
     let beatmap = beatmaps
         .first()
-        .ok_or_else(|| failure::err_msg("Beatmap not found"))?;
+        .ok_or_else(|| anyhow::Error::msg("Beatmap not found"))?;
     let diff = beatmap_difficulty(&beatmap)?;
 
     Ok(format!(
@@ -1010,7 +1002,7 @@ fn show_beatmap_sub(api: &mut ApiClient, beatmap_id: &str) -> Fallible<String> {
     ))
 }
 
-fn show_beatmap(_args: &ShowBeatmap) -> Fallible<()> {
+fn show_beatmap(_args: &ShowBeatmap) -> anyhow::Result<()> {
     use std::io::BufRead;
     let mut api = api_client()?;
     let stdin = std::io::stdin();
@@ -1025,14 +1017,14 @@ fn show_beatmap(_args: &ShowBeatmap) -> Fallible<()> {
             println!(
                 "{}",
                 show_beatmap_sub(&mut api, beatmap_id)
-                    .with_context(|_| format!("beatmap id {}", beatmap_id))?
+                    .with_context(|| format!("beatmap id {}", beatmap_id))?
             );
         }
     }
     Ok(())
 }
 
-fn show_db_stat(_args: &ShowDbStat) -> Fallible<()> {
+fn show_db_stat(_args: &ShowDbStat) -> anyhow::Result<()> {
     let cache = scores_cache()?;
     let mut more_than_1 = 0;
     let mut more_than_10 = 0;
@@ -1062,7 +1054,7 @@ fn show_db_stat(_args: &ShowDbStat) -> Fallible<()> {
     Ok(())
 }
 
-fn compute_map_stat(args: &ComputeMapStat) -> Fallible<()> {
+fn compute_map_stat(args: &ComputeMapStat) -> anyhow::Result<()> {
     let include_converts = args.include_converts.unwrap_or(true);
     let mut count = 0u64;
     let mut total_length = 0.0;
@@ -1087,7 +1079,7 @@ fn compute_map_stat(args: &ComputeMapStat) -> Fallible<()> {
     Ok(())
 }
 
-fn compare_diff_calc(_args: &CompareDiffCalc) -> Fallible<()> {
+fn compare_diff_calc(_args: &CompareDiffCalc) -> anyhow::Result<()> {
     let new_maps = beatmaps_cache()?;
     let old_maps = beatmaps_cache_old().context("Cannot open beatmaps_old database")?;
 
@@ -1161,8 +1153,6 @@ fn main() {
         App::CompareDiffCalc(args) => compare_diff_calc(&args),
     }
     .unwrap_or_else(|e| {
-        for cause in e.iter_chain() {
-            eprintln!("{}", cause);
-        }
+        eprintln!("{:#}", e);
     })
 }

@@ -1,14 +1,3 @@
-extern crate bitflags;
-extern crate chrono;
-extern crate failure;
-extern crate num_enum;
-extern crate osu_api_internal_derive;
-extern crate reqwest;
-extern crate serde;
-extern crate serde_derive;
-extern crate serde_json;
-extern crate serde_urlencoded;
-
 pub mod data;
 
 use chrono::prelude::*;

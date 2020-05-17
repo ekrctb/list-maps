@@ -5,13 +5,13 @@ authors = ["ekrctb <ekrctb@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+anyhow = "1.0.31"
 osu_api_internal_derive = { path = "../derive" }
 reqwest = "0.9.19"
 serde = { version = "1.0.98", features = ["derive"] }
 serde_derive = "1.0.98"
 serde_json = "1.0.40"
 serde_urlencoded = "0.6.1"
-failure = "0.1.5"
 chrono = { version = "0.4.7", features = ["serde"] }
 serde-humantime = "0.1.1"
 num_enum = "0.3.1"

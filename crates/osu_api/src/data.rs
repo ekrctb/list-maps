@@ -1,7 +1,6 @@
 #![allow(clippy::unreadable_literal)]
 
 use chrono::prelude::*;
-use failure::Fallible;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde_derive::{Deserialize, Serialize};
 use std::{borrow::Cow, convert::TryInto, str::FromStr};
@@ -66,7 +65,7 @@ pub struct Beatmap<'a> {
     pub max_combo: Option<Cow<'a, str>>,
 }
 
-pub fn date_from_str(s: &str) -> Fallible<DateTime<Utc>> {
+pub fn date_from_str(s: &str) -> anyhow::Result<DateTime<Utc>> {
     let dt = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")?;
     Ok(DateTime::from_utc(dt, Utc))
 }
@@ -85,8 +84,8 @@ pub enum ApprovalStatus {
     Loved = 4,
 }
 
-pub fn approval_status_from_str(s: &str) -> Fallible<ApprovalStatus> {
-    i8::from_str(s)?.try_into().map_err(failure::err_msg)
+pub fn approval_status_from_str(s: &str) -> anyhow::Result<ApprovalStatus> {
+    i8::from_str(s)?.try_into().map_err(anyhow::Error::msg)
 }
 
 #[derive(
@@ -100,8 +99,8 @@ pub enum GameMode {
     Mania = 3,
 }
 
-pub fn game_mode_from_str(s: &str) -> Fallible<GameMode> {
-    u8::from_str(s)?.try_into().map_err(failure::err_msg)
+pub fn game_mode_from_str(s: &str) -> anyhow::Result<GameMode> {
+    u8::from_str(s)?.try_into().map_err(anyhow::Error::msg)
 }
 
 pub fn game_mode_to_string(mode: GameMode) -> String {
@@ -265,6 +264,6 @@ bitflags::bitflags! {
     }
 }
 
-pub fn mods_from_str(s: &str) -> Fallible<Mods> {
-    Mods::from_bits(u32::from_str(s)?).ok_or_else(|| failure::err_msg("Invalid Mods value"))
+pub fn mods_from_str(s: &str) -> anyhow::Result<Mods> {
+    Mods::from_bits(u32::from_str(s)?).ok_or_else(|| anyhow::Error::msg("Invalid Mods value"))
 }

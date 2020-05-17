@@ -5,7 +5,7 @@ authors = ["ekrctb <ekrctb@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-failure = "0.1.5"
+anyhow = "1.0.31"
 osu_api = { path = "../osu_api" }
 structopt = "0.2.18"
 chrono = "0.4.7"
