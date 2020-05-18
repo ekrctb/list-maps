@@ -663,18 +663,18 @@ fn get_fc_level(fc_count: &HashMap<Mods, i32>, min_misses: i32) -> i32 {
 
 fn beatmap_summary(
     beatmap: &Beatmap,
-    scores: &[Box<RawValue>],
+    scores: &[&str],
     update_date: &DateTime<Utc>,
 ) -> anyhow::Result<serde_json::Value> {
     let mut fc_count = HashMap::new();
     let mut min_misses = 999;
     for (i, score) in scores.iter().enumerate() {
-        let score: Score = match serde_json::from_str(score.get()) {
+        let score: Score = match serde_json::from_str(score) {
             Ok(x) => x,
             Err(e) => anyhow::bail!(
                 "{}\n{}\nFailed to parse score (beatmap id = {}, index = {})",
                 e,
-                score.get(),
+                score,
                 beatmap.beatmap_id,
                 i
             ),
@@ -724,20 +724,26 @@ fn beatmap_summary(
 fn each_filtered_map_with_scores(
     min_stars: f64,
     game_mode: &str,
-    mut f: impl FnMut(&Beatmap, &[Box<RawValue>], &DateTime<Utc>) -> anyhow::Result<()>,
+    mut f: impl FnMut(&Beatmap, &[&str], &DateTime<Utc>) -> anyhow::Result<()>,
 ) -> anyhow::Result<u64> {
     let cache = scores_cache()?;
     let mut no_scores = true;
     let mut num_skipped = 0;
 
     let all_maps = each_filtered_map(min_stars, |beatmap| {
+        let cache_value: ScoreCacheValue;
         let (scores, update_date) = match cache.get(&cache_key(&beatmap.beatmap_id, game_mode))? {
             Some(value) => {
                 no_scores = false;
-                let value: ScoreCacheValue =
-                    serde_json::from_slice(&value).context("db content is malformed")?;
-                let scores: Vec<_> = value.scores.into_iter().chain(value.dt_scores).collect();
-                (scores, value.update_date)
+                cache_value = serde_json::from_slice(&value).context("db content is malformed")?;
+                let mut scores = Vec::new();
+                let mut seen = std::collections::HashSet::new();
+                for score in cache_value.scores.iter().chain(&cache_value.dt_scores) {
+                    if seen.insert(score.get()) {
+                        scores.push(score.get());
+                    }
+                }
+                (scores, cache_value.update_date)
             }
             None => {
                 num_skipped += 1;
@@ -897,7 +903,7 @@ fn render_ranking(args: &RenderRanking) -> anyhow::Result<()> {
                 return Ok(());
             }
             for score in scores {
-                let score: Score = serde_json::from_str(score.get())?;
+                let score: Score = serde_json::from_str(score)?;
                 let pp = match &score.pp {
                     Some(s) => f64::from_str(&s).unwrap_or(0.0),
                     None => continue,
@@ -952,7 +958,7 @@ fn find_scores(args: &FindScores) -> anyhow::Result<()> {
             }
             let ar = f64::from_str(&beatmap.diff_approach)?;
 
-            let score: Score = serde_json::from_str(score.get())?;
+            let score: Score = serde_json::from_str(score)?;
             let mods = data::mods_from_str(&score.enabled_mods)?;
             if score.perfect != "1"
                 || mods.contains(Mods::HALF_TIME)
