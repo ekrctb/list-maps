@@ -387,7 +387,7 @@ function initUnsortedTableRows() {
                 $('<div>').append([
                     $('<i>').addClass(mode_icons[row.mode]),
                     $('<a>')
-                        .attr('href', `https://osu.ppy.sh/b/${row.beatmap_id}?m=2`)
+                        .attr('href', `https://osu.ppy.sh/beatmapsets/${row.beatmapset_id}#fruits/${row.beatmap_id}`)
                         .attr('target', '_blank')
                         .text(row.display_string)]
                 ),
