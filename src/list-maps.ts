@@ -394,9 +394,6 @@ function initUnsortedTableRows() {
                 row.beatmap_id_number > 0 ? $('<div>').append([
                     $('<a><i class="fa fa-music">')
                         .attr('href', `javascript:toggleMusic("https://b.ppy.sh/preview/${row.beatmapset_id}.mp3")`),
-                    $('<a><i class="fa fa-download">')
-                        .attr('target', '_blank')
-                        .attr('href', `https://osu.ppy.sh/beatmapsets/${row.beatmapset_id}/download?noVideo=1`),
                     $('<a><i class="fa fa-cloud-download">')
                         .attr('href', `osu://dl/${row.beatmapset_id}`)
                 ]) : $()
