@@ -128,7 +128,10 @@ struct ComputeMapStat {
 }
 
 #[derive(Debug, StructOpt)]
-struct CompareDiffCalc {}
+struct CompareDiffCalc {
+    #[structopt(long = "game-mode")]
+    game_mode: Option<String>,
+}
 
 fn reqwest_client() -> anyhow::Result<Client> {
     use reqwest::header;
@@ -1085,7 +1088,7 @@ fn compute_map_stat(args: &ComputeMapStat) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn compare_diff_calc(_args: &CompareDiffCalc) -> anyhow::Result<()> {
+fn compare_diff_calc(args: &CompareDiffCalc) -> anyhow::Result<()> {
     let new_maps = beatmaps_cache()?;
     let old_maps = beatmaps_cache_old().context("Cannot open beatmaps_old database")?;
 
@@ -1110,6 +1113,12 @@ fn compare_diff_calc(_args: &CompareDiffCalc) -> anyhow::Result<()> {
 
         if new_map.approved != "1" && new_map.approved != "2" {
             continue;
+        }
+
+        if let Some(mode) = &args.game_mode {
+            if &new_map.mode != mode {
+                continue;
+            }
         }
 
         let old_diff = beatmap_difficulty(&old_map)?;
