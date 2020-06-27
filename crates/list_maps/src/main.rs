@@ -83,7 +83,7 @@ struct GetScores {
     approved_date_start: Option<DateTime<Utc>>,
     #[structopt(long = "num-scores", default_value = "3")]
     num_scores: i32,
-    #[structopt(long = "num-dt-scores", default_value = "3")]
+    #[structopt(long = "num-dt-scores", default_value = "1")]
     num_dt_scores: i32,
 }
 
@@ -382,6 +382,10 @@ struct ScoreCacheValue {
     #[serde(default)]
     pub no_more_scores: bool,
     #[serde(default)]
+    pub dt_fetch_skipped: bool,
+    #[serde(default)]
+    pub hddt_fetch_skipped: bool,
+    #[serde(default)]
     pub dt_scores: Vec<Box<RawValue>>,
 }
 
@@ -420,12 +424,70 @@ fn get_scores_for(
     })
 }
 
+// only implemented for osu!catch mode
+fn calc_mod_factor(mods: Mods) -> f64 {
+    let mut factor = 1.0;
+    if mods.contains(Mods::HIDDEN) {
+        factor *= 1.06;
+    }
+    if mods.contains(Mods::DOUBLE_TIME) {
+        factor *= 1.06;
+    }
+    if mods.contains(Mods::HARD_ROCK) {
+        factor *= 1.12;
+    }
+    if mods.contains(Mods::FLASHLIGHT) {
+        factor *= 1.12;
+    }
+    if mods.contains(Mods::EASY) {
+        factor *= 0.5;
+    }
+    if mods.contains(Mods::NO_FAIL) {
+        factor *= 0.5;
+    }
+    if mods.contains(Mods::HALF_TIME) {
+        factor *= 0.3;
+    }
+    factor
+}
+
+// Is it probable that there are more mod FCs which ranked lower than the number of scores just fetched?
+// only implemented for osu!catch mode
+fn no_more_mod_fcs(
+    beatmap: &Beatmap,
+    top_scores: &[Box<RawValue>],
+    mod_factor: f64,
+) -> anyhow::Result<bool> {
+    let last_score = match top_scores.last() {
+        None => return Ok(true),
+        Some(x) => x,
+    };
+    let last_score: Score = serde_json::from_str(last_score.get())?;
+    let score_num = f64::from_str(&last_score.score).unwrap_or(0f64);
+    let enabled_mods = data::mods_from_str(&last_score.enabled_mods)?;
+    let combo_factor_upper_bound =
+        f64::from_str(&last_score.maxcombo)? / max_combo(beatmap).unwrap_or(1.0);
+    // spinner, droplets etc.
+    let additional_score = 100_000f64;
+    let mod_fc_score_lower_bound = score_num / calc_mod_factor(enabled_mods) * mod_factor
+        / combo_factor_upper_bound
+        - additional_score;
+    // If possible mod score always have score higher than the last score, we can say there is no more mod FCs
+    Ok(if score_num < mod_fc_score_lower_bound {
+        true
+    } else {
+        false
+    })
+}
+
 fn get_scores(args: &GetScores) -> anyhow::Result<()> {
     validate_game_mode_str(&args.game_mode)?;
+    let is_catch = args.game_mode == "2";
 
     let mut api = api_client()?;
     let cache = scores_cache()?;
     let mut count = 0;
+    let mut update_count = 0;
     let mut fetch_count = 0;
     each_filtered_map(args.min_stars, |beatmap| {
         count += 1;
@@ -483,25 +545,46 @@ fn get_scores(args: &GetScores) -> anyhow::Result<()> {
 
         let update_date = Utc::now();
 
-        let all_mods = fetch(None, args.num_scores)?;
-        let dt = fetch(Some(Mods::DOUBLE_TIME), args.num_dt_scores)?;
-        let hddt = fetch(Some(Mods::DOUBLE_TIME | Mods::HIDDEN), args.num_dt_scores)?;
+        let top = fetch(None, args.num_scores)?;
 
-        let dt_scores = dt.scores.into_iter().chain(hddt.scores).collect();
+        let mut dt_scores = vec![];
+        let mut fetch_skipped = [false; 2];
+
+        for (skipped, mods) in fetch_skipped.iter_mut().zip(
+            [Mods::DOUBLE_TIME, Mods::HIDDEN | Mods::DOUBLE_TIME]
+                .iter()
+                .copied(),
+        ) {
+            if is_catch
+                && (top.no_more_scores
+                    || no_more_mod_fcs(beatmap, &top.scores, calc_mod_factor(mods))?)
+            {
+                *skipped = true;
+            } else {
+                dt_scores.extend(fetch(Some(mods), args.num_dt_scores)?.scores);
+            }
+        }
 
         let cache_value = ScoreCacheValue {
             update_date,
-            scores: all_mods.scores,
-            no_more_scores: all_mods.no_more_scores,
+            scores: top.scores,
+            no_more_scores: top.no_more_scores,
+            dt_fetch_skipped: fetch_skipped[0],
+            hddt_fetch_skipped: fetch_skipped[1],
             dt_scores,
         };
 
         cache.set(&key, serde_json::to_vec(&cache_value)?)?;
 
+        update_count += 1;
+
         Ok(())
     })?;
 
-    println!("{} / {} maps done!", fetch_count, count);
+    println!(
+        "{} / {} maps done! ({} fetches)",
+        update_count, count, fetch_count
+    );
 
     Ok(())
 }
