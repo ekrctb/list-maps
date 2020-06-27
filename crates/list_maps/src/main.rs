@@ -591,8 +591,8 @@ fn get_scores(args: &GetScores) -> anyhow::Result<()> {
 
 fn beatmap_title<'a>(beatmap: &Beatmap<'a>) -> String {
     format!(
-        "{} - {} [{}]",
-        beatmap.artist, beatmap.title, beatmap.version
+        "{} - {} [{}] ({})",
+        beatmap.artist, beatmap.title, beatmap.version, beatmap.creator
     )
 }
 
