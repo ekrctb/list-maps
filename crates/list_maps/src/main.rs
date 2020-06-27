@@ -547,6 +547,15 @@ fn get_scores(args: &GetScores) -> anyhow::Result<()> {
 
         let top = fetch(None, args.num_scores)?;
 
+        let dt_fc_in_top = top.scores.iter().any(|score| {
+            if let Ok(score) = serde_json::from_str(score.get()) as Result<Score, _> {
+                let mods = data::mods_from_str(&score.enabled_mods).unwrap_or(Mods::empty());
+                mods.contains(Mods::DOUBLE_TIME) && score.perfect == "1"
+            } else {
+                false
+            }
+        });
+
         let mut dt_scores = vec![];
         let mut fetch_skipped = [false; 2];
 
@@ -557,6 +566,7 @@ fn get_scores(args: &GetScores) -> anyhow::Result<()> {
         ) {
             if is_catch
                 && (top.no_more_scores
+                    || dt_fc_in_top
                     || no_more_mod_fcs(beatmap, &top.scores, calc_mod_factor(mods))?)
             {
                 *skipped = true;
