@@ -7,6 +7,10 @@ pub mod parse;
 pub mod preparse;
 #[cfg(test)]
 mod test_utils;
+pub mod value;
+
+pub use de::Reader;
+pub use value::AnyValue;
 
 pub(crate) trait ParseResult {
     fn is_accept(&self) -> bool;
