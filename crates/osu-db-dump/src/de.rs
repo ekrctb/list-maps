@@ -171,24 +171,22 @@ impl<R: BufRead> Reader<R> {
         Ok(TableDef::new(p.into_column_names()))
     }
 
-    pub fn deserialize<'a, D: DeserializeOwned>(
-        &'a mut self,
-    ) -> Result<DeserializeIter<'a, R, D>, Error> {
+    pub fn deserialize<D: DeserializeOwned>(mut self) -> Result<DeserializeIter<R, D>, Error> {
         let table_def = self.read_table_def()?;
         Ok(DeserializeIter::new(self, table_def))
     }
 }
 
-pub struct DeserializeIter<'a, R, D> {
-    reader: &'a mut Reader<R>,
+pub struct DeserializeIter<R, D> {
+    reader: Reader<R>,
     table_def: TableDef,
     parser: ValueTupleParser,
     line_pos: usize,
     _phantom: PhantomData<fn() -> D>,
 }
 
-impl<'a, R: BufRead, D: DeserializeOwned> DeserializeIter<'a, R, D> {
-    fn new(reader: &'a mut Reader<R>, table_def: TableDef) -> Self {
+impl<R: BufRead, D: DeserializeOwned> DeserializeIter<R, D> {
+    fn new(reader: Reader<R>, table_def: TableDef) -> Self {
         let tuple_size = table_def.column_count();
         Self {
             reader,
@@ -200,7 +198,7 @@ impl<'a, R: BufRead, D: DeserializeOwned> DeserializeIter<'a, R, D> {
     }
 }
 
-impl<'a, R: BufRead, D: DeserializeOwned> Iterator for DeserializeIter<'a, R, D> {
+impl<'a, R: BufRead, D: DeserializeOwned> Iterator for DeserializeIter<R, D> {
     type Item = Result<D, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
