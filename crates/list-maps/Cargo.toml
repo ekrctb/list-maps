@@ -11,3 +11,4 @@ nom = "6.1.2"
 clap = "3.0.0-beta.2"
 anyhow = "1.0.40"
 serde = { version="1.0.125", features=["derive"] }
+bstr = { version="0.2.16", features=["serde1"] }

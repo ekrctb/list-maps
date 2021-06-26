@@ -5,23 +5,31 @@ use atoi::FromRadix10SignedChecked;
 use crate::{make_span, preparse};
 pub use preparse::make_err_msg;
 
-pub fn string_literal(input: &mut &[u8], buf: &mut Vec<u8>) -> Result<(), &'static str> {
+pub fn string_literal_opt_borrow<'a>(
+    mut input: &'a [u8],
+    buf: &mut Vec<u8>,
+) -> Result<Option<&'a [u8]>, &'static str> {
     if input.len() < 2 || input[0] != b'\'' || input[input.len() - 1] != b'\'' {
         return Err("string literal");
     }
-    *input = &input[1..];
+    input = &input[1..];
+    let mut first = true;
     loop {
         let mut i = 0;
         while i + 1 < input.len() && input[i] != b'\\' {
             i += 1;
         }
+        // zero-copy case
+        if std::mem::replace(&mut first, false) && i + 1 == input.len() {
+            return Ok(Some(&input[..i]));
+        }
         buf.extend_from_slice(&input[..i]);
-        *input = &input[i..];
+        input = &input[i..];
+
         if input.len() < 2 {
             if input.is_empty() {
                 return Err("escape sequence");
             }
-            *input = &input[1..];
             break;
         }
         buf.push(match input[1] {
@@ -36,28 +44,34 @@ pub fn string_literal(input: &mut &[u8], buf: &mut Vec<u8>) -> Result<(), &'stat
             b'\\' => b'\\',
             _ => return Err("escape sequence"),
         });
-        *input = &input[2..];
+        input = &input[2..];
     }
-    return Ok(());
+    return Ok(None);
+}
+
+pub fn string_literal(input: &[u8], buf: &mut Vec<u8>) -> Result<(), &'static str> {
+    if let Some(borrowed) = string_literal_opt_borrow(input, buf)? {
+        buf.extend_from_slice(borrowed);
+    }
+    Ok(())
 }
 
 pub fn integer_literal<T: FromRadix10SignedChecked>(
-    input: &mut &[u8],
+    input: &[u8],
     out: &mut T,
 ) -> Result<(), &'static str> {
-    let (res, n) = T::from_radix_10_signed_checked(*input);
-    *input = &input[n..];
+    let (res, _) = T::from_radix_10_signed_checked(input);
     match res {
         Some(value) => {
             *out = value;
             Ok(())
         }
-        None => Err("integer literal"),
+        _ => Err("integer literal"),
     }
 }
 
-fn from_str<T: FromStr>(
-    input: &mut &[u8],
+pub fn from_str<T: FromStr>(
+    input: &[u8],
     expected: &'static str,
     out: &mut T,
 ) -> Result<(), &'static str> {
@@ -70,12 +84,45 @@ fn from_str<T: FromStr>(
     }
 }
 
-pub fn float_literal(input: &mut &[u8], out: &mut f32) -> Result<(), &'static str> {
-    from_str(input, "float literal", out)
+pub fn null_literal(input: &[u8]) -> Result<(), &'static str> {
+    if input != b"NULL" {
+        return Err("null literal");
+    }
+    Ok(())
 }
 
-pub fn null_literal(input: &mut [u8]) -> bool {
-    input == b"NULL"
+pub fn boolean_integer(input: &[u8], out: &mut bool) -> Result<(), &'static str> {
+    if input != b"0" && input != b"1" {
+        return Err("boolean integer");
+    }
+    *out = input == b"1";
+    Ok(())
+}
+
+pub enum LiteralKind {
+    Null,
+    String,
+    Integer,
+    Decimal,
+}
+
+pub fn infer_kind_is_null(span: &[u8]) -> bool {
+    span.first() == Some(&b'N')
+}
+
+pub fn infer_kind(span: &[u8]) -> Option<LiteralKind> {
+    match span.first() {
+        Some(b'N') => Some(LiteralKind::Null),
+        Some(b'\'') => Some(LiteralKind::String),
+        Some(b'0'..=b'9') | Some(b'-') => {
+            if span.iter().any(|&b| b == b'.' || b == b'e') {
+                Some(LiteralKind::Decimal)
+            } else {
+                Some(LiteralKind::Integer)
+            }
+        }
+        _ => None,
+    }
 }
 
 pub fn column_name(input: &mut &[u8], out: &mut String) -> Result<(), &'static str> {
@@ -141,7 +188,7 @@ pub struct ValueTuple<'a, 'b> {
 }
 
 impl<'a, 'b> ValueTuple<'a, 'b> {
-    fn new(span: &'a [u8], end_index: &'b [usize]) -> Self {
+    pub(crate) fn new(span: &'a [u8], end_index: &'b [usize]) -> Self {
         Self { span, end_index }
     }
 

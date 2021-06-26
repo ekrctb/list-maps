@@ -59,10 +59,3 @@ fn make_display(input: &[u8]) -> impl Display {
 pub(crate) fn make_span<'a>(start: &'a [u8], input: &[u8]) -> &'a [u8] {
     &start[..start.len() - input.len()]
 }
-
-// #[derive(serde::Deserialize)]
-// pub struct OsuBeatmap {
-//     beatmap_id: u32,
-//     beatmapset_id: u32,
-//     total_length: u32,
-// }
