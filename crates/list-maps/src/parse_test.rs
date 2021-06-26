@@ -1,5 +1,6 @@
 use std::{
-    fs::File,
+    ffi::OsStr,
+    fs::{read_dir, File},
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
     time::Instant,
@@ -11,7 +12,7 @@ use clap::Clap;
 #[derive(Clap)]
 #[clap(about = "Test dump file parsing")]
 pub struct Opts {
-    #[clap(required = true, about = ".sql files from osu dump")]
+    #[clap(about = "Additional .sql files from osu database dump")]
     input_files: Vec<PathBuf>,
     #[clap(
         long = "parse-value",
@@ -24,7 +25,14 @@ pub struct Opts {
 pub struct NoValue {}
 
 impl Opts {
-    pub fn run(&self) -> anyhow::Result<()> {
+    pub fn run(&self, super_opts: &super::Opts) -> anyhow::Result<()> {
+        for entry in read_dir(&super_opts.osu_dump_dir).context("cannot open osu dump directory")? {
+            let path = entry?.path();
+            if path.extension() == Some(OsStr::new("sql")) {
+                self.run_one(&path)?;
+            }
+        }
+
         for path in &self.input_files {
             self.run_one(path)?;
         }
