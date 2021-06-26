@@ -9,6 +9,8 @@ pub mod preparse;
 mod test_utils;
 pub mod value;
 
+pub use de::Error;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub use de::Reader;
 pub use value::AnyValue;
 

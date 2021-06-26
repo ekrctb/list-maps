@@ -26,15 +26,15 @@ pub struct NoValue {}
 
 impl Opts {
     pub fn run(&self, super_opts: &super::Opts) -> anyhow::Result<()> {
+        for path in &self.input_files {
+            self.run_one(path)?;
+        }
+
         for entry in read_dir(&super_opts.osu_dump_dir).context("cannot open osu dump directory")? {
             let path = entry?.path();
             if path.extension() == Some(OsStr::new("sql")) {
                 self.run_one(&path)?;
             }
-        }
-
-        for path in &self.input_files {
-            self.run_one(path)?;
         }
         Ok(())
     }
