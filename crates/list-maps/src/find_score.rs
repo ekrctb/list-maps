@@ -18,6 +18,8 @@ pub struct Beatmap {
     pub beatmapset_id: u32,
     pub version: BString,
     pub diff_approach: f32,
+    pub diff_size: f32,
+    pub playmode: u8,
 }
 
 #[derive(serde::Deserialize)]
@@ -61,12 +63,31 @@ pub fn value_to_difficulty(value: f64, min: f64, mid: f64, max: f64) -> f64 {
     }
 }
 
-pub fn calculate_ar_with_clock_rate(ar: f64, rate: f64) -> f64 {
+pub fn calculate_effective_ar(ar: f64, rate: f64) -> f64 {
     const MIN: f64 = 1800.0;
     const MID: f64 = 1200.0;
     const MAX: f64 = 450.0;
     let preempt = difficulty_to_value(ar, MIN, MID, MAX);
     value_to_difficulty(preempt / rate, MIN, MID, MAX)
+}
+
+pub fn calculate_effective_cs(cs: f64, rate: f64) -> f64 {
+    const MIN: f64 = 1.7;
+    const MID: f64 = 1.0;
+    const MAX: f64 = 0.3;
+    let scale = difficulty_to_value(cs, MIN, MID, MAX);
+    value_to_difficulty(scale / rate, MIN, MID, MAX)
+}
+
+pub fn get_clock_rate(mods: Mods) -> f64 {
+    let mut rate = 1.0;
+    if mods.contains(Mods::DOUBLE_TIME) {
+        rate *= 1.5
+    }
+    if mods.contains(Mods::HALF_TIME) {
+        rate *= 0.75
+    }
+    rate
 }
 
 fn get_effective_ar(map: &Beatmap, score: &Score) -> f64 {
@@ -77,14 +98,18 @@ fn get_effective_ar(map: &Beatmap, score: &Score) -> f64 {
     if score.enabled_mods.contains(Mods::HARD_ROCK) {
         ar = f64::min(ar * 1.4, 10.0);
     }
-    let mut rate = 1.0;
-    if score.enabled_mods.contains(Mods::DOUBLE_TIME) {
-        rate *= 1.5
+    calculate_effective_ar(ar, get_clock_rate(score.enabled_mods))
+}
+
+fn get_effective_cs(map: &Beatmap, score: &Score) -> f64 {
+    let mut cs = map.diff_size as f64;
+    if score.enabled_mods.contains(Mods::EASY) {
+        cs *= 0.5;
     }
-    if score.enabled_mods.contains(Mods::HALF_TIME) {
-        rate *= 0.75
+    if score.enabled_mods.contains(Mods::HARD_ROCK) {
+        cs = f64::min(cs * 1.3, 10.0);
     }
-    calculate_ar_with_clock_rate(ar, rate)
+    calculate_effective_cs(cs, get_clock_rate(score.enabled_mods))
 }
 
 fn bold_if(string: String, cond: bool) -> ColoredString {
@@ -102,18 +127,44 @@ struct ScoreInfo<'a> {
     score: Score,
     pp: f64,
     effective_ar: f64,
+    effective_cs: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::Clap)]
 pub enum ScoreSortMethod {
     #[clap(about = "No sorting is performed and scores are displayed immediately.")]
     NoSorting,
-    #[clap(about = "Sort the scores from highest pp to lowest pp.")]
+    #[clap(about = "Highest pp first.")]
     Pp,
+    #[clap(about = "Highest effective AR first.")]
+    Ar,
+    #[clap(about = "Highest effective CS first.")]
+    Cs,
+    #[clap(about = "Newest scores first.")]
+    New,
+    #[clap(about = "Oldest scores first.")]
+    Old,
+}
+
+impl ScoreSortMethod {
+    fn is_date(self) -> bool {
+        self == Self::New || self == Self::Old
+    }
+
+    fn sort(self, scores: &mut Vec<ScoreInfo>) {
+        match self {
+            Self::NoSorting => {}
+            Self::Pp => scores.sort_by_key(|info| Reverse(OrderedFloat(info.pp))),
+            Self::Ar => scores.sort_by_key(|i| Reverse(OrderedFloat(i.effective_ar))),
+            Self::Cs => scores.sort_by_key(|i| Reverse(OrderedFloat(i.effective_cs))),
+            Self::New => scores.sort_by(|x, y| y.score.date.cmp(&x.score.date)),
+            Self::Old => scores.sort_by(|x, y| x.score.date.cmp(&y.score.date)),
+        }
+    }
 }
 
 #[derive(clap::Clap)]
-#[clap(about = "Find scores with certain criteria.")]
+#[clap(about = "with certain criteria.")]
 pub struct Opts {
     #[clap(
         long = "sort",
@@ -121,67 +172,116 @@ pub struct Opts {
         arg_enum,
         default_value = "no-sorting"
     )]
-    sort: ScoreSortMethod,
+    sort_method: ScoreSortMethod,
+
+    #[clap(
+        long = "limit",
+        about = "Only display specified number of scores at max."
+    )]
+    limit: Option<u64>,
 
     #[clap(
         long = "ar-ge",
-        name = "AR",
-        about = "Find scores with effective AR greater or equal to this value."
+        about = "with effective ApproachRate greater or equal to this value."
     )]
     ar_ge: Option<f64>,
     #[clap(
-        long = "pp-ge",
-        name = "PP",
-        about = "Find scores with pp greater or equal to this value."
+        long = "ar-le",
+        about = "with effective ApproachRate less or equal to this value."
     )]
-    pp_ge: Option<f64>,
+    ar_le: Option<f64>,
 
     #[clap(
+        long = "cs-ge",
+        about = "with effective CircleSize greater or equal to this value."
+    )]
+    cs_ge: Option<f64>,
+    #[clap(
+        long = "cs-le",
+        about = "with effective CircleSize less or equal to this value."
+    )]
+    cs_le: Option<f64>,
+
+    #[clap(long = "pp-ge", about = "with pp greater or equal to this value.")]
+    pp_ge: Option<f64>,
+    #[clap(long = "pp-le", about = "with pp less or equal to this value.")]
+    pp_le: Option<f64>,
+
+    #[clap(
+        long = "miss-ge",
+        about = "with miss count greater or equal to this value."
+    )]
+    miss_ge: Option<u32>,
+    #[clap(
         long = "miss-le",
-        about = "Find scores with miss count less or equal to this value."
+        about = "with miss count less or equal to this value."
     )]
     miss_le: Option<u32>,
     #[clap(
         long = "perfect",
-        about = "Find scores with no misses.",
-        conflicts_with = "miss_le"
+        about = "with no misses.",
+        conflicts_with = "miss-le",
+        conflicts_with = "miss-ge"
     )]
     perfect: bool,
 
-    #[clap(long = "no-nf", about = "Exclude scores with NoFail mod enabled.")]
-    no_nf: bool,
-    #[clap(long = "no-ez", about = "Exclude scores with Easy mod enabled.")]
-    no_ez: bool,
-    #[clap(long = "no-hd", about = "Exclude scores with Hidden mod enabled.")]
-    no_hd: bool,
     #[clap(
-        long = "no-dt",
-        about = "Exclude scores with DoubleTime (or NightCore) mod enabled."
+        long = "newer-than",
+        about = "with achieved date newer than this value. Format like 2015-12-23 13:56:44.",
+        alias = "date-le"
     )]
+    date_le: Option<String>,
+    #[clap(
+        long = "older-than",
+        about = "with achieved date older than this value. Format like 2015-12-23 13:56:44.",
+        alias = "date-ge"
+    )]
+    date_ge: Option<String>,
+
+    #[clap(
+        long = "std",
+        about = "on the osu!standard (converted) map.",
+        alias = "convert",
+        alias = "no-specific"
+    )]
+    require_convert: bool,
+    #[clap(
+        long = "ctb",
+        about = "on the osu!catch specific map",
+        alias = "no-convert",
+        alias = "specific",
+        conflicts_with = "std"
+    )]
+    no_convert: bool,
+
+    #[clap(long = "no-nf", about = "with NoFail mod disabled.")]
+    no_nf: bool,
+    #[clap(long = "no-ez", about = "with Easy mod disabled.")]
+    no_ez: bool,
+    #[clap(long = "no-hd", about = "with Hidden mod disabled.")]
+    no_hd: bool,
+    #[clap(long = "no-dt", about = "with DoubleTime (or NightCore) mod disabled.")]
     no_dt: bool,
-    #[clap(long = "no-ht", about = "Exclude scores with HalfTime mod enabled.")]
+    #[clap(long = "no-ht", about = "with HalfTime mod disabled.")]
     no_ht: bool,
-    #[clap(long = "no-hr", about = "Exclude scores with HardRock mod enabled.")]
+    #[clap(long = "no-hr", about = "with HardRock mod disabled.")]
     no_hr: bool,
-    #[clap(long = "no-fl", about = "Exclude scores with FlashLight mod enabled.")]
+    #[clap(long = "no-fl", about = "with FlashLight mod disabled.")]
     no_fl: bool,
 
-    #[clap(long = "nf", about = "Find scores with NoFail mod enabled.")]
+    #[clap(long = "nf", about = "with NoFail mod enabled.")]
     require_nf: bool,
-    #[clap(long = "ez", about = "Find scores with Easy mod enabled.")]
+    #[clap(long = "ez", about = "with Easy mod enabled.")]
     require_ez: bool,
-    #[clap(long = "hd", about = "Find scores with Hidden mod enabled.")]
+    #[clap(long = "hd", about = "with Hidden mod enabled.")]
     require_hd: bool,
-    #[clap(
-        long = "dt",
-        about = "Find scores with DoubleTime (or NightCore) mod enabled."
-    )]
+    #[clap(long = "dt", about = "with DoubleTime (or NightCore) mod enabled.")]
     require_dt: bool,
-    #[clap(long = "ht", about = "Find scores with HalfTime mod enabled.")]
+    #[clap(long = "ht", about = "with HalfTime mod enabled.")]
     require_ht: bool,
-    #[clap(long = "hr", about = "Find scores with HardRock mod enabled.")]
+    #[clap(long = "hr", about = "with HardRock mod enabled.")]
     require_hr: bool,
-    #[clap(long = "fl", about = "Find scores with FlashLight mod enabled.")]
+    #[clap(long = "fl", about = "with FlashLight mod enabled.")]
     require_fl: bool,
 }
 
@@ -222,15 +322,29 @@ impl Opts {
             self.require_fl,
         );
 
-        let ar_ge = self.ar_ge.unwrap_or(f64::NEG_INFINITY);
-        let pp_ge = self.pp_ge.unwrap_or(f64::NEG_INFINITY);
-        let miss_le = if self.perfect {
-            0
+        let ar_range = self.ar_ge.unwrap_or(f64::NEG_INFINITY) - 1e-9
+            ..=self.ar_le.unwrap_or(f64::INFINITY) + 1e-9;
+        let cs_range = self.cs_ge.unwrap_or(f64::NEG_INFINITY) - 1e-9
+            ..=self.cs_le.unwrap_or(f64::INFINITY) + 1e-9;
+        let pp_range =
+            self.pp_ge.unwrap_or(f64::NEG_INFINITY)..=self.pp_le.unwrap_or(f64::INFINITY);
+        let miss_range = if self.perfect {
+            0..=0
         } else {
-            self.miss_le.unwrap_or(u32::MAX)
+            self.miss_ge.unwrap_or(0)..=self.miss_le.unwrap_or(u32::MAX)
+        };
+        let date_range =
+            self.date_le.as_deref().unwrap_or("0")..=self.date_ge.as_deref().unwrap_or("9");
+        let mode_range = if self.require_convert {
+            0..=0
+        } else if self.no_convert {
+            2..=2
+        } else {
+            0..=u8::MAX
         };
 
-        let display_immediately = self.sort == ScoreSortMethod::NoSorting;
+        let display_immediately = self.sort_method == ScoreSortMethod::NoSorting;
+        let mut num_displayed = 0;
 
         let mut total_count = 0u64;
         let mut satisfied_count = 0u64;
@@ -256,17 +370,31 @@ impl Opts {
                 continue;
             }
 
-            if (score.countmiss as u32) > miss_le {
+            let effective_ar = get_effective_ar(map, &score);
+            if !ar_range.contains(&effective_ar) {
                 continue;
             }
 
-            let effective_ar = get_effective_ar(map, &score);
-            if effective_ar < ar_ge - 1e-9 {
+            let effective_cs = get_effective_cs(map, &score);
+            if !cs_range.contains(&effective_cs) {
                 continue;
             }
 
             let pp = score.pp.unwrap_or_default() as f64;
-            if pp < pp_ge {
+            if !pp_range.contains(&pp) {
+                continue;
+            }
+
+            let miss = score.countmiss as u32;
+            if !miss_range.contains(&miss) {
+                continue;
+            }
+
+            if !date_range.contains(&score.date) {
+                continue;
+            }
+
+            if !mode_range.contains(&map.playmode) {
                 continue;
             }
 
@@ -278,10 +406,11 @@ impl Opts {
                 score,
                 pp,
                 effective_ar,
+                effective_cs,
             };
 
             if display_immediately {
-                self.display_score(&info);
+                self.display_score(&info, &mut num_displayed);
             } else {
                 scores_to_sort.push(info);
             }
@@ -290,15 +419,9 @@ impl Opts {
         }
 
         if !display_immediately {
-            match self.sort {
-                ScoreSortMethod::NoSorting => {}
-                ScoreSortMethod::Pp => {
-                    scores_to_sort.sort_by_key(|info| Reverse(OrderedFloat(info.pp)))
-                }
-            }
-
+            self.sort_method.sort(&mut scores_to_sort);
             for info in scores_to_sort {
-                self.display_score(&info);
+                self.display_score(&info, &mut num_displayed);
             }
         }
 
@@ -306,11 +429,24 @@ impl Opts {
             "{} / {} scores satified the criteria.",
             satisfied_count, total_count
         );
+        if num_displayed != satisfied_count {
+            eprintln!(
+                "{} scores not displayed due to limit.",
+                satisfied_count - num_displayed
+            );
+        }
 
         Ok(())
     }
 
-    fn display_score(&self, info: &ScoreInfo) {
+    fn display_score(&self, info: &ScoreInfo, num_displayed: &mut u64) {
+        if let Some(limit) = self.limit {
+            if limit <= *num_displayed {
+                return;
+            }
+        }
+        *num_displayed += 1;
+
         let ScoreInfo {
             set,
             map,
@@ -318,27 +454,46 @@ impl Opts {
             score,
             pp,
             effective_ar,
+            effective_cs,
         } = info;
 
         let user_name = user.map(|user| user.username.as_str()).unwrap_or("???");
 
+        let mods_format = score.enabled_mods.format_plus().to_string();
         let miss_format = if score.countmiss == 0 {
             "".to_string()
         } else {
             format!(" {}xMiss", score.countmiss)
         };
+        let pp_format = bold_if(
+            format!("{:.0}pp", pp),
+            self.pp_ge.is_some() || self.pp_le.is_some() || self.sort_method == ScoreSortMethod::Pp,
+        );
+        let ar_format = bold_if(
+            format!("AR{:.1}", effective_ar),
+            self.ar_ge.is_some() || self.ar_le.is_some() || self.sort_method == ScoreSortMethod::Ar,
+        );
+        let cs_format = bold_if(
+            format!("CS{:.1}", effective_cs),
+            self.cs_ge.is_some() || self.cs_le.is_some() || self.sort_method == ScoreSortMethod::Cs,
+        );
+        let date_format = bold_if(
+            score.date.to_string(),
+            self.date_ge.is_some() || self.date_le.is_some() || self.sort_method.is_date(),
+        );
 
         println!(
-            "{user} | {artist} - {title} [{version}]{mods}{miss} {pp} {ar} | {date} <https://osu.ppy.sh/scores/fruits/{score_id}>",
+            "{user} | {artist} - {title} [{version}]{mods}{miss} {pp} {ar} {cs} | {date} <https://osu.ppy.sh/scores/fruits/{score_id}>",
             user = user_name,
             artist = set.artist,
             title = set.title,
             version = map.version,
-            mods = score.enabled_mods.format_plus(),
+            mods = mods_format,
             miss = miss_format,
-            pp = bold_if(format!("{:.0}pp", pp), self.pp_ge.is_some()),
-            ar = bold_if(format!("AR{:.2}", effective_ar), self.ar_ge.is_some()),
-            date = score.date,
+            pp = pp_format,
+            ar = ar_format,
+            cs = cs_format,
+            date = date_format,
             score_id = score.score_id
         );
     }
