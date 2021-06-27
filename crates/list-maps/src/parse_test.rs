@@ -1,8 +1,6 @@
 use std::{
-    ffi::OsStr,
-    fs::{read_dir, File},
+    fs::File,
     io::{BufRead, BufReader},
-    path::{Path, PathBuf},
     time::Instant,
 };
 
@@ -12,8 +10,6 @@ use clap::Clap;
 #[derive(Clap)]
 #[clap(about = "Test dump file parsing")]
 pub struct Opts {
-    #[clap(about = "Additional .sql files from osu database dump")]
-    input_files: Vec<PathBuf>,
     #[clap(
         long = "parse-value",
         about = "Parse the actual value. If not set, only lexical structure is recognized and values are ignored."
@@ -26,26 +22,39 @@ pub struct NoValue {}
 
 impl Opts {
     pub fn run(&self, super_opts: &super::Opts) -> anyhow::Result<()> {
-        for path in &self.input_files {
-            self.run_one(path)?;
-        }
+        use osu_db_dump::Db::*;
 
-        for entry in read_dir(&super_opts.osu_dump_dir).context("cannot open osu dump directory")? {
-            let path = entry?.path();
-            if path.extension() == Some(OsStr::new("sql")) {
-                self.run_one(&path)?;
+        for &db in &[
+            BeatmapDifficultyAttribs,
+            BeatmapDifficulty,
+            BeatmapFailtimes,
+            BeatmapPerformanceBlacklist,
+            Beatmapsets,
+            Beatmaps,
+            Counts,
+            DifficultyAttribs,
+            ScoresFruitsHigh,
+            UserBeatmapPlaycount,
+            UserStatsFruits,
+            SampleUsers,
+        ] {
+            if let Err(e) = self.run_one(super_opts, db) {
+                println!("Error {}: {}", db, e);
             }
         }
+
         Ok(())
     }
 
-    fn run_one(&self, input_path: &Path) -> anyhow::Result<()> {
-        let file = File::open(input_path).context("cannot open input file")?;
+    fn run_one(&self, super_opts: &super::Opts, db: osu_db_dump::Db) -> anyhow::Result<()> {
+        let path = super_opts.osu_dump_dir.join(db.file_name());
+        let file = File::open(&path).context("cannot open input file")?;
         let file_size = file.metadata()?.len();
 
         println!(
-            "Parsing {} (size = {:.3}MiB) ...",
-            input_path.display(),
+            "Database {} at {} with size {:.3}MiB) ...",
+            db,
+            path.display(),
             (file_size as f64) * 1e-6
         );
 
