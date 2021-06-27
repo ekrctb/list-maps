@@ -1,6 +1,5 @@
 mod find_score;
 mod parse_test;
-mod show_beatmap;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -40,7 +39,6 @@ impl Opts {
 #[derive(Clap)]
 enum SubCommand {
     ParseTest(parse_test::Opts),
-    ShowBeatmap(show_beatmap::Opts),
     FindScore(find_score::Opts),
 }
 
@@ -48,7 +46,6 @@ fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
     match &opts.sub_command {
         SubCommand::ParseTest(sub) => sub.run(&opts)?,
-        SubCommand::ShowBeatmap(sub) => sub.run(&opts)?,
         SubCommand::FindScore(sub) => sub.run(&opts)?,
     }
 
