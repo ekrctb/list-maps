@@ -164,7 +164,7 @@ impl ScoreSortMethod {
 }
 
 #[derive(clap::Clap)]
-#[clap(about = "with certain criteria.")]
+#[clap(about = "Find scores using specified criteria.")]
 pub struct Opts {
     #[clap(
         long = "sort",
