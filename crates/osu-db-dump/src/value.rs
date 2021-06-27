@@ -1,6 +1,7 @@
-use std::{convert::TryFrom, fmt::Display};
+use std::{convert::TryFrom, fmt::Display, str::FromStr};
 
 use bstr::BString;
+use serde::{Deserialize, Deserializer};
 
 #[derive(Debug)]
 pub enum AnyValue {
@@ -60,10 +61,10 @@ impl<'de> serde::de::Visitor<'de> for AnyValueVisitor {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for AnyValue {
+impl<'de> Deserialize<'de> for AnyValue {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_any(AnyValueVisitor)
     }
@@ -102,8 +103,6 @@ bitflags::bitflags! {
         const KEY3         = 134217728;
         const KEY2         = 268435456;
         const SCORE_V2     = 536870912;
-
-        const CATCH_DIFFICULTY_MASK = Self::EASY.bits | Self::HIDDEN.bits | Self::HARD_ROCK.bits | Self::DOUBLE_TIME.bits | Self::HALF_TIME.bits | Self::FLASHLIGHT.bits;
     }
 }
 
@@ -168,21 +167,71 @@ impl<'de> serde::de::Visitor<'de> for ModsVisitor {
     fn visit_u32<E: serde::de::Error>(self, v: u32) -> Result<Self::Value, E> {
         Mods::from_bits(v).ok_or_else(|| E::custom(format!("invalid mod combination: {}", v)))
     }
+}
 
-    fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Self::Value, E> {
-        self.visit_u32(u32::try_from(v).map_err(E::custom)?)
-    }
-
-    fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
-        self.visit_u32(u32::try_from(v).map_err(E::custom)?)
+impl<'de> Deserialize<'de> for Mods {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_u32(ModsVisitor)
     }
 }
 
-impl<'de> serde::Deserialize<'de> for Mods {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_u32(ModsVisitor)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
+pub enum Ruleset {
+    Osu = 0,
+    Taiko = 1,
+    Catch = 2,
+    Mania = 3,
+}
+
+impl Ruleset {
+    pub const MIN: Ruleset = Ruleset::Osu;
+    pub const MAX: Ruleset = Ruleset::Mania;
+
+    pub fn id(self) -> u8 {
+        self as u8
+    }
+}
+
+impl TryFrom<u8> for Ruleset {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Ruleset::Osu),
+            1 => Ok(Ruleset::Taiko),
+            2 => Ok(Ruleset::Catch),
+            3 => Ok(Ruleset::Mania),
+            _ => Err("unexpected ruleset id"),
+        }
+    }
+}
+
+struct RulesetVisitor;
+
+impl<'de> serde::de::Visitor<'de> for RulesetVisitor {
+    type Value = Ruleset;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("an integer representing a ruleset")
+    }
+
+    fn visit_u8<E: serde::de::Error>(self, v: u8) -> Result<Self::Value, E> {
+        Ruleset::try_from(v).map_err(E::custom)
+    }
+}
+impl<'de> Deserialize<'de> for Ruleset {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_u8(RulesetVisitor)
+    }
+}
+
+impl FromStr for Ruleset {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        u8::from_str(s)
+            .map_err(|e| e.to_string())
+            .and_then(|v| Ruleset::try_from(v).map_err(|e| e.to_string()))
     }
 }

@@ -171,6 +171,7 @@ name = "list-maps"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitflags",
  "bstr",
  "clap",
  "colored",

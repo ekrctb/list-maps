@@ -3,7 +3,7 @@ use std::cmp::Reverse;
 use bstr::BString;
 use colored::{ColoredString, Colorize};
 use ordered_float::OrderedFloat;
-use osu_db_dump::{Db, Mods};
+use osu_db_dump::{value::Ruleset, Db, Mods};
 
 #[derive(serde::Deserialize)]
 pub struct BeatmapSet {
@@ -19,7 +19,7 @@ pub struct Beatmap {
     pub version: BString,
     pub diff_approach: f32,
     pub diff_size: f32,
-    pub playmode: u8,
+    pub playmode: Ruleset,
 }
 
 #[derive(serde::Deserialize)]
@@ -250,7 +250,7 @@ pub struct Opts {
         about = "on the osu!catch specific map",
         alias = "no-convert",
         alias = "specific",
-        conflicts_with = "std"
+        conflicts_with = "require-convert"
     )]
     no_convert: bool,
 
@@ -336,11 +336,11 @@ impl Opts {
         let date_range =
             self.date_le.as_deref().unwrap_or("0")..=self.date_ge.as_deref().unwrap_or("9");
         let mode_range = if self.require_convert {
-            0..=0
+            Ruleset::Osu..=Ruleset::Osu
         } else if self.no_convert {
-            2..=2
+            Ruleset::Catch..=Ruleset::Catch
         } else {
-            0..=u8::MAX
+            Ruleset::MIN..=Ruleset::MAX
         };
 
         let display_immediately = self.sort_method == ScoreSortMethod::NoSorting;

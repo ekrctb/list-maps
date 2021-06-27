@@ -2,7 +2,6 @@
   "name": "list-maps",
   "version": "1.0.0",
   "description": "",
-  "dependencies": {},
   "devDependencies": {
     "@types/jquery": "^3.3.31",
     "@types/node": "^8.0.46",

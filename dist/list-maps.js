@@ -10,14 +10,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 const MINIMUM_DATE = new Date(0);
 class SummaryRow {
-    constructor(data) {
-        this.data = data;
+    constructor(line) {
         [
-            this.approved_status,
             this.approved_date_string,
-            this.mode,
-            this.beatmap_id,
             this.beatmapset_id,
+            this.beatmap_id,
+            this.approved_status,
+            this.mode,
             this.display_string,
             this.stars,
             this.pp,
@@ -25,12 +24,15 @@ class SummaryRow {
             this.max_combo,
             this.approach_rate,
             this.circle_size,
-            this.fc_level,
-            this.update_date,
-        ] = data;
-        this.beatmap_id_number = parseInt(this.beatmap_id);
+            this.min_miss,
+            this.fc_level_flags,
+        ] = JSON.parse(`[${line}]`);
         this.approved_date = new Date(this.approved_date_string.replace(' ', 'T') + '+08:00');
         this.display_string_lower = this.display_string.toLowerCase();
+        this.max_fc_level = -this.min_miss;
+        for (let i = 0; this.fc_level_flags >> i; i += 1)
+            if (this.fc_level_flags >> i & 1)
+                this.max_fc_level = i;
         this.info = null;
     }
 }
@@ -109,7 +111,7 @@ const sortKeys = [
     (x) => x.max_combo,
     (x) => x.approach_rate,
     (x) => x.circle_size,
-    (x) => x.fc_level,
+    (x) => x.max_fc_level,
     (x) => !x.info ? MINIMUM_DATE.valueOf() : x.info.lastPlayed.valueOf()
 ];
 function stringifyObject(obj) {
@@ -138,7 +140,7 @@ function drawTableForCurrentFiltering() {
         if (beatmapInfoMap.size === 0)
             return -1;
         let flags = 0;
-        const info = beatmapInfoMap.get(row.beatmap_id_number);
+        const info = beatmapInfoMap.get(row.beatmap_id);
         if (!info)
             return 0;
         flags |= 2;
@@ -179,10 +181,52 @@ function drawTableForCurrentFiltering() {
             return false;
         if (!filter_search_query.check(row))
             return false;
-        if (filter_fc_level !== 0 && (filter_fc_level === 1
-            ? row.fc_level > 0
-            : row.fc_level !== filter_fc_level))
-            return false;
+        if (filter_fc_level !== 0) {
+            const flags = row.fc_level_flags;
+            const F = FC_LEVEL_FLAGS_EXTRA;
+            switch (filter_fc_level) {
+                case 1:
+                    if (flags !== 0)
+                        return false;
+                    break;
+                case 2:
+                    if ((flags & F.EZ_PLUS) === 0 || (flags & F.GT_EZ) !== 0)
+                        return false;
+                    break;
+                case 3:
+                    if ((flags & F.GT_EZ) === 0 || (flags & F.GT_NM) !== 0)
+                        return false;
+                    break;
+                case 4:
+                    if ((flags & F.GT_NM) === 0 || (flags & F.GT_HD) !== 0)
+                        return false;
+                    break;
+                case 5:
+                    if ((flags & F.GT_HD) === 0 || (flags & F.GT_HR) !== 0)
+                        return false;
+                    break;
+                case 6:
+                    if ((flags & F.GT_HR) === 0)
+                        return false;
+                    break;
+                case 7:
+                    if ((flags & F.EZFL) === 0)
+                        return false;
+                    break;
+                case 8:
+                    if ((flags & F.FL_PLUS) === 0)
+                        return false;
+                    break;
+                case 9:
+                    if ((flags & F.DT_PLUS) === 0)
+                        return false;
+                    break;
+                case 10:
+                    if ((flags & F.HRDT_PLUS) === 0)
+                        return false;
+                    break;
+            }
+        }
         if (filter_local_data !== 0) {
             const flags = get_local_data_flags(row);
             switch (filter_local_data) {
@@ -211,7 +255,7 @@ function drawTableForCurrentFiltering() {
         return true;
     });
     const prevIndex = Array(summaryRows.length);
-    for (const ord of currentSortOrder) {
+    for (const ord of [summaryOrderConfig.defaultOrder, ...currentSortOrder]) {
         if (ord === 0)
             continue;
         indices.forEach((x, i) => prevIndex[x] = i);
@@ -236,7 +280,7 @@ function drawTableForCurrentFiltering() {
     indices.length = indexEnd - indexStart;
     drawTable(indices);
 }
-function simplifySortOrder(order, [noTies, defaultOrder]) {
+function simplifySortOrder(order, config) {
     const res = [];
     const seen = Array(sortKeys.length);
     for (let i = order.length - 1; i >= 0; --i) {
@@ -248,15 +292,19 @@ function simplifySortOrder(order, [noTies, defaultOrder]) {
             continue;
         seen[key] = sign;
         res.push(x);
-        if (noTies.indexOf(key) !== -1) // there is almost no ties
+        if (config.noTies.indexOf(key) !== -1) // there is almost no ties
             break;
     }
-    if (res.length !== 0 && res[res.length - 1] === defaultOrder)
+    if (res.length !== 0 && res[res.length - 1] === config.defaultOrder)
         res.pop();
     res.reverse();
     return res;
 }
-const summaryOrderConfig = [[0, 1, 2, 3, 4, 5, 8], -3];
+const summaryOrderConfig = {
+    noTies: [0, 1, 2, 3, 4, 5, 8],
+    // approved_date desc
+    defaultOrder: -1,
+};
 function setQueryAccordingToHash() {
     let obj;
     try {
@@ -294,7 +342,7 @@ function setQueryAccordingToHash() {
 function setTableHeadSortingMark() {
     $('.sorted').removeClass('sorted ascending descending');
     const x = currentSortOrder.length === 0 ?
-        -3 : // stars desc
+        summaryOrderConfig.defaultOrder :
         currentSortOrder[currentSortOrder.length - 1];
     const index = Math.abs(x) - 1;
     $($('#summary-table > thead > tr > th')[index])
@@ -312,23 +360,69 @@ const rankAchievedClass = [
     'SSH', 'SH', 'SS', 'S', 'A',
     'B', 'C', 'D', 'F', '-'
 ];
-const FC_LEVEL_DISPLAY = {
-    2: 'Only EZ',
-    3: 'NM',
-    4: 'HD',
-    5: 'HR',
-    6: 'HDHR',
-    7: 'EZFL',
-    8: 'FL+',
-    9: '(HD)DT',
-    10: '(HD)HRDT',
+const FC_LEVEL_FLAGS = {
+    HT: 1 << 0,
+    EZ: 1 << 1,
+    NM: 1 << 2,
+    HD: 1 << 3,
+    HR: 1 << 4,
+    HDHR: 1 << 5,
+    EZFL: 1 << 6,
+    HTFL: 1 << 7,
+    FL: 1 << 8,
+    HRFL: 1 << 9,
+    EZDT: 1 << 10,
+    DT: 1 << 11,
+    HDDT: 1 << 12,
+    HRDT: 1 << 13,
 };
-function displayFCLevel(fc_level) {
-    if (fc_level === -999)
+const FC_LEVEL_FLAGS_EXTRA = (() => {
+    const F = FC_LEVEL_FLAGS;
+    const ALL = (F.HRDT << 1) - 1;
+    const GT_EZ = ALL & ~(F.HT | F.HTFL | F.EZ);
+    const GT_NM = GT_EZ & ~(F.EZFL | F.EZDT | F.NM);
+    const GT_HD = GT_NM & ~(F.HD | F.DT);
+    const GT_HR = GT_HD & ~(F.HR | F.HDDT);
+    const GT_HDHR = GT_HR & ~(F.HDHR | F.FL);
+    const EZ_PLUS = F.EZ | F.EZFL | F.EZDT;
+    const FL_PLUS = F.HTFL | F.FL;
+    const DT_PLUS = F.DT | F.HDDT | F.HRDT;
+    const HRDT_PLUS = F.HRDT;
+    return Object.assign({ ALL, GT_EZ, GT_NM, GT_HD, GT_HR, GT_HDHR, EZ_PLUS, FL_PLUS, DT_PLUS, HRDT_PLUS }, F);
+})();
+function displayFCLevel(min_miss, fc_level_flags) {
+    if (min_miss === 999)
         return 'No scores';
-    if (fc_level <= 0)
-        return -fc_level + (fc_level === -1 ? ' miss' : ' misses');
-    return FC_LEVEL_DISPLAY[fc_level];
+    if (fc_level_flags === 0)
+        return `${min_miss}xMiss`;
+    const fs = [];
+    if (fc_level_flags & FC_LEVEL_FLAGS.HRDT)
+        fs.push("HRDT");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.HDDT)
+        fs.push("HDDT");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.DT)
+        fs.push("DT");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.EZDT)
+        fs.push("EZDT");
+    if (fc_level_flags & FC_LEVEL_FLAGS.HRFL)
+        fs.push("HRFL");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.FL)
+        fs.push("FL");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.HTFL)
+        fs.push("HTFL");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.EZFL)
+        fs.push("EZFL");
+    if (fc_level_flags & FC_LEVEL_FLAGS.HDHR)
+        fs.push("HDHR");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.HR)
+        fs.push("HR");
+    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_HD) && (fc_level_flags & FC_LEVEL_FLAGS.HD))
+        fs.push("HD");
+    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_NM) && (fc_level_flags & FC_LEVEL_FLAGS.NM))
+        fs.push("NM");
+    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_EZ) && (fc_level_flags & FC_LEVEL_FLAGS.EZ))
+        fs.push("EZ");
+    return fs.join(', ');
 }
 let beatmapInfoMapUsedVersion = MINIMUM_DATE;
 function initUnsortedTableRows() {
@@ -339,7 +433,7 @@ function initUnsortedTableRows() {
     beatmapInfoMapUsedVersion = beatmapInfoMapVersion;
     if (beatmapInfoMap.size !== 0) {
         summaryRows.forEach(row => {
-            const info = beatmapInfoMap.get(row.beatmap_id_number);
+            const info = beatmapInfoMap.get(row.beatmap_id);
             if (info)
                 row.info = info;
         });
@@ -372,7 +466,7 @@ function initUnsortedTableRows() {
                     .attr('target', '_blank')
                     .text(row.display_string)
             ]),
-            row.beatmap_id_number > 0 ? $('<div>').append([
+            row.beatmap_id > 0 ? $('<div>').append([
                 $('<a><i class="fa fa-music">')
                     .attr('href', `javascript:toggleMusic("https://b.ppy.sh/preview/${row.beatmapset_id}.mp3")`),
                 $('<a><i class="fa fa-cloud-download">')
@@ -385,7 +479,7 @@ function initUnsortedTableRows() {
         row.max_combo.toString(),
         row.approach_rate.toFixed(1),
         row.circle_size.toFixed(1),
-        displayFCLevel(row.fc_level),
+        displayFCLevel(row.min_miss, row.fc_level_flags),
         beatmapInfoMap.size === 0 ? [] :
             [
                 $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),
@@ -634,7 +728,7 @@ function initTable(sortKeys, orderConfig, onSortOrderChanged) {
     sortKeys.forEach((_, index) => {
         $.data(thList[index], 'thIndex', index);
     });
-    thList.click((event) => {
+    thList.on('click', (event) => {
         let th = $(event.target);
         if (!th.is('th'))
             th = th.parent('th');
@@ -685,17 +779,13 @@ function main() {
         for (const id of ['filter-search-query'])
             $(`#${id}`).on('input', onChange);
         initTable(sortKeys, summaryOrderConfig, onChange);
-        const loadData = (data, lastModified) => {
-            $('#last-update-time')
-                .append($('<time>')
-                .attr('datetime', lastModified.toISOString())
-                .text(lastModified.toISOString().split('T')[0]));
-            summaryRows = data.map(x => new SummaryRow(x));
+        const loadData = (lines) => {
+            summaryRows = lines.split('\n').filter(s => s !== '').map(line => new SummaryRow(line));
             initUnsortedTableRows();
             drawTableForCurrentFiltering();
             $('#summary-table-loader').hide();
         };
-        $('#db-file-input').change((event) => __awaiter(this, void 0, void 0, function* () {
+        $('#db-file-input').on('change', (event) => __awaiter(this, void 0, void 0, function* () {
             const elem = event.target;
             if (!elem.files)
                 return;
@@ -714,7 +804,7 @@ function main() {
             }
             elem.value = '';
         }));
-        $('#page-prev > a, #page-next > a').click(e => {
+        $('#page-prev > a, #page-next > a').on('click', e => {
             const start = parseInt($('#result-index-start').val());
             const count = parseInt($('#result-count-limit').val());
             const isPrev = e.target.parentElement.id === 'page-prev';
@@ -731,8 +821,8 @@ function main() {
         audio.onended = () => {
             $('.music-control').hide();
         };
-        const resp = yield fetch('data/summary.json');
-        loadData(yield resp.json(), new Date(resp.headers.get('Last-Modified') || '0'));
+        const resp = yield fetch('data/summary.csv');
+        loadData(yield resp.text());
     });
 }
 $(main);

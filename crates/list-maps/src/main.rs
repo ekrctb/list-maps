@@ -1,5 +1,6 @@
 mod find_score;
 mod parse_test;
+mod render_maps;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -40,6 +41,7 @@ impl Opts {
 enum SubCommand {
     ParseTest(parse_test::Opts),
     FindScore(find_score::Opts),
+    RenderMaps(render_maps::Opts),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -47,6 +49,7 @@ fn main() -> anyhow::Result<()> {
     match &opts.sub_command {
         SubCommand::ParseTest(sub) => sub.run(&opts)?,
         SubCommand::FindScore(sub) => sub.run(&opts)?,
+        SubCommand::RenderMaps(sub) => sub.run(&opts)?,
     }
 
     Ok(())

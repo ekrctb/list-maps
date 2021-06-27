@@ -45,6 +45,7 @@ use crate::{
 };
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     #[error("IO error")]
     Io(#[source] io::Error),

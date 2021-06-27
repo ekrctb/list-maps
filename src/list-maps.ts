@@ -1,19 +1,12 @@
 
-
-type SummaryRowData =
-    [
-        number, string, number, string, string, string, number, number, number,
-        number, number, number, number, string
-    ];
 const MINIMUM_DATE = new Date(0);
 class SummaryRow {
-    approved_status: number;
     approved_date_string: string;
     approved_date: Date;
+    beatmapset_id: number;
+    beatmap_id: number;
+    approved_status: number;
     mode: number;
-    beatmap_id: string;
-    beatmap_id_number: number;
-    beatmapset_id: string;
     display_string: string;
     display_string_lower: string;
     stars: number;
@@ -22,16 +15,17 @@ class SummaryRow {
     max_combo: number;
     approach_rate: number;
     circle_size: number;
-    fc_level: number;
-    update_date: string;
+    min_miss: number;
+    fc_level_flags: number;
+    max_fc_level: number;
     info: BeatmapInfo | null;
-    constructor(private readonly data: SummaryRowData) {
+    constructor(line: string) {
         [
-            this.approved_status,
             this.approved_date_string,
-            this.mode,
-            this.beatmap_id,
             this.beatmapset_id,
+            this.beatmap_id,
+            this.approved_status,
+            this.mode,
             this.display_string,
             this.stars,
             this.pp,
@@ -39,12 +33,15 @@ class SummaryRow {
             this.max_combo,
             this.approach_rate,
             this.circle_size,
-            this.fc_level,
-            this.update_date,
-        ] = data;
-        this.beatmap_id_number = parseInt(this.beatmap_id);
+            this.min_miss,
+            this.fc_level_flags,
+        ] = JSON.parse(`[${line}]`) as any[];
+
         this.approved_date = new Date(this.approved_date_string.replace(' ', 'T') + '+08:00');
         this.display_string_lower = this.display_string.toLowerCase();
+        this.max_fc_level = -this.min_miss;
+        for (let i = 0; this.fc_level_flags >> i; i += 1) if (this.fc_level_flags >> i & 1)
+            this.max_fc_level = i;
         this.info = null;
     }
 }
@@ -85,8 +82,7 @@ class SearchQuery {
             'rank': `(${JSON.stringify(rankAchievedClass)}[!row.info?9:row.info.rankAchieved]).toLowerCase()`,
             'lv': 'row.fc_level',
         };
-        const regexp = new RegExp(`(${
-            Object.keys(key_to_property_name).join('|')
+        const regexp = new RegExp(`(${Object.keys(key_to_property_name).join('|')
             })(<=?|>=?|=|!=)([-\\w\\.]*)`);
         let check_func_source = 'return true';
         this.normalized_source = '';
@@ -125,7 +121,7 @@ const sortKeys = [
     (x: SummaryRow) => x.max_combo,
     (x: SummaryRow) => x.approach_rate,
     (x: SummaryRow) => x.circle_size,
-    (x: SummaryRow) => x.fc_level,
+    (x: SummaryRow) => x.max_fc_level,
     (x: SummaryRow) => !x.info ? MINIMUM_DATE.valueOf() : x.info.lastPlayed.valueOf()
 ];
 
@@ -157,7 +153,7 @@ function drawTableForCurrentFiltering() {
     const get_local_data_flags = (row: SummaryRow): number => {
         if (beatmapInfoMap.size === 0) return -1;
         let flags = 0;
-        const info = beatmapInfoMap.get(row.beatmap_id_number);
+        const info = beatmapInfoMap.get(row.beatmap_id);
         if (!info) return 0;
         flags |= 2;
         if (info.lastPlayed.valueOf() !== MINIMUM_DATE.valueOf())
@@ -204,10 +200,22 @@ function drawTableForCurrentFiltering() {
         if (!filter_search_query.check(row))
             return false;
 
-        if (filter_fc_level !== 0 && (filter_fc_level === 1
-            ? row.fc_level > 0
-            : row.fc_level !== filter_fc_level))
-            return false;
+        if (filter_fc_level !== 0) {
+            const flags = row.fc_level_flags;
+            const F = FC_LEVEL_FLAGS_EXTRA;
+            switch (filter_fc_level) {
+                case 1: if (flags !== 0) return false; break;
+                case 2: if ((flags & F.EZ_PLUS) === 0 || (flags & F.GT_EZ) !== 0) return false; break;
+                case 3: if ((flags & F.GT_EZ) === 0 || (flags & F.GT_NM) !== 0) return false; break;
+                case 4: if ((flags & F.GT_NM) === 0 || (flags & F.GT_HD) !== 0) return false; break;
+                case 5: if ((flags & F.GT_HD) === 0 || (flags & F.GT_HR) !== 0) return false; break;
+                case 6: if ((flags & F.GT_HR) === 0) return false; break;
+                case 7: if ((flags & F.EZFL) === 0) return false; break;
+                case 8: if ((flags & F.FL_PLUS) === 0) return false; break;
+                case 9: if ((flags & F.DT_PLUS) === 0) return false; break;
+                case 10: if ((flags & F.HRDT_PLUS) === 0) return false; break;
+            }
+        }
 
         if (filter_local_data !== 0) {
             const flags = get_local_data_flags(row);
@@ -224,7 +232,7 @@ function drawTableForCurrentFiltering() {
     });
 
     const prevIndex = Array(summaryRows.length);
-    for (const ord of currentSortOrder) {
+    for (const ord of [summaryOrderConfig.defaultOrder, ...currentSortOrder]) {
         if (ord === 0) continue;
         indices.forEach((x, i) => prevIndex[x] = i);
         const sortKey = sortKeys[Math.abs(ord) - 1];
@@ -256,7 +264,12 @@ function drawTableForCurrentFiltering() {
     drawTable(indices);
 }
 
-function simplifySortOrder(order: number[], [noTies, defaultOrder]: [number[], number]): number[] {
+interface SortOrderConfig {
+    readonly noTies: number[];
+    readonly defaultOrder: number;
+}
+
+function simplifySortOrder(order: number[], config: SortOrderConfig): number[] {
     const res = [];
     const seen = Array(sortKeys.length);
     for (let i = order.length - 1; i >= 0; --i) {
@@ -266,16 +279,20 @@ function simplifySortOrder(order: number[], [noTies, defaultOrder]: [number[], n
         if (seen[key]) continue;
         seen[key] = sign;
         res.push(x);
-        if (noTies.indexOf(key) !== -1) // there is almost no ties
+        if (config.noTies.indexOf(key) !== -1) // there is almost no ties
             break;
     }
-    if (res.length !== 0 && res[res.length - 1] === defaultOrder)
+    if (res.length !== 0 && res[res.length - 1] === config.defaultOrder)
         res.pop();
     res.reverse();
     return res;
 }
 
-const summaryOrderConfig: [number[], number] = [[0, 1, 2, 3, 4, 5, 8], -3];
+const summaryOrderConfig: SortOrderConfig = {
+    noTies: [0, 1, 2, 3, 4, 5, 8],
+    // approved_date desc
+    defaultOrder: -1,
+};
 function setQueryAccordingToHash() {
     let obj: { [k: string]: string; };
     try {
@@ -305,7 +322,7 @@ function setQueryAccordingToHash() {
 function setTableHeadSortingMark() {
     $('.sorted').removeClass('sorted ascending descending');
     const x = currentSortOrder.length === 0 ?
-        -3 : // stars desc
+        summaryOrderConfig.defaultOrder :
         currentSortOrder[currentSortOrder.length - 1];
     const index = Math.abs(x) - 1;
     $($('#summary-table > thead > tr > th')[index])
@@ -327,24 +344,81 @@ const rankAchievedClass = [
     'B', 'C', 'D', 'F', '-'
 ];
 
-const FC_LEVEL_DISPLAY: Record<number, string> = {
-    2: 'Only EZ',
-    3: 'NM',
-    4: 'HD',
-    5: 'HR',
-    6: 'HDHR',
-    7: 'EZFL',
-    8: 'FL+',
-    9: '(HD)DT',
-    10: '(HD)HRDT',
-};
+const FC_LEVEL_FLAGS = {
+    HT: 1 << 0,
+    EZ: 1 << 1,
+    NM: 1 << 2,
+    HD: 1 << 3,
+    HR: 1 << 4,
+    HDHR: 1 << 5,
+    EZFL: 1 << 6,
+    HTFL: 1 << 7,
+    FL: 1 << 8,
+    HRFL: 1 << 9,
+    EZDT: 1 << 10,
+    DT: 1 << 11,
+    HDDT: 1 << 12,
+    HRDT: 1 << 13,
+} as const;
 
-function displayFCLevel(fc_level: number) {
-    if (fc_level === -999)
+const FC_LEVEL_FLAGS_EXTRA = (() => {
+    const F = FC_LEVEL_FLAGS;
+    const ALL = (F.HRDT << 1) - 1;
+    const GT_EZ = ALL & ~(F.HT | F.HTFL | F.EZ);
+    const GT_NM = GT_EZ & ~(F.EZFL | F.EZDT | F.NM);
+    const GT_HD = GT_NM & ~(F.HD | F.DT);
+    const GT_HR = GT_HD & ~(F.HR | F.HDDT);
+    const GT_HDHR = GT_HR & ~(F.HDHR | F.FL);
+    const EZ_PLUS = F.EZ | F.EZFL | F.EZDT;
+    const FL_PLUS = F.HTFL | F.FL;
+    const DT_PLUS = F.DT | F.HDDT | F.HRDT;
+    const HRDT_PLUS = F.HRDT;
+    return {
+        ALL, GT_EZ, GT_NM, GT_HD, GT_HR, GT_HDHR, EZ_PLUS, FL_PLUS, DT_PLUS, HRDT_PLUS,
+        ...F
+    } as const;
+})();
+
+function displayFCLevel(min_miss: number, fc_level_flags: number) {
+    if (min_miss === 999)
         return 'No scores';
-    if (fc_level <= 0)
-        return -fc_level + (fc_level === -1 ? ' miss' : ' misses');
-    return FC_LEVEL_DISPLAY[fc_level]!;
+    if (fc_level_flags === 0)
+        return `${min_miss}xMiss`;
+
+    const fs: string[] = [];
+    if (fc_level_flags & FC_LEVEL_FLAGS.HRDT)
+        fs.push("HRDT");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.HDDT)
+        fs.push("HDDT");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.DT)
+        fs.push("DT");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.EZDT)
+        fs.push("EZDT");
+
+    if (fc_level_flags & FC_LEVEL_FLAGS.HRFL)
+        fs.push("HRFL");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.FL)
+        fs.push("FL");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.HTFL)
+        fs.push("HTFL");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.EZFL)
+        fs.push("EZFL");
+
+    if (fc_level_flags & FC_LEVEL_FLAGS.HDHR)
+        fs.push("HDHR");
+    else if (fc_level_flags & FC_LEVEL_FLAGS.HR)
+        fs.push("HR");
+
+    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_HD) && (fc_level_flags & FC_LEVEL_FLAGS.HD))
+        fs.push("HD");
+
+    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_NM) && (fc_level_flags & FC_LEVEL_FLAGS.NM))
+        fs.push("NM");
+
+    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_EZ) && (fc_level_flags & FC_LEVEL_FLAGS.EZ))
+        fs.push("EZ");
+
+    return fs.join(', ');
 }
 
 let beatmapInfoMapUsedVersion = MINIMUM_DATE;
@@ -357,7 +431,7 @@ function initUnsortedTableRows() {
     beatmapInfoMapUsedVersion = beatmapInfoMapVersion;
     if (beatmapInfoMap.size !== 0) {
         summaryRows.forEach(row => {
-            const info = beatmapInfoMap.get(row.beatmap_id_number);
+            const info = beatmapInfoMap.get(row.beatmap_id);
             if (info)
                 row.info = info;
         });
@@ -392,7 +466,7 @@ function initUnsortedTableRows() {
                         .attr('target', '_blank')
                         .text(row.display_string)]
                 ),
-                row.beatmap_id_number > 0 ? $('<div>').append([
+                row.beatmap_id > 0 ? $('<div>').append([
                     $('<a><i class="fa fa-music">')
                         .attr('href', `javascript:toggleMusic("https://b.ppy.sh/preview/${row.beatmapset_id}.mp3")`),
                     $('<a><i class="fa fa-cloud-download">')
@@ -405,7 +479,7 @@ function initUnsortedTableRows() {
             row.max_combo.toString(),
             row.approach_rate.toFixed(1),
             row.circle_size.toFixed(1),
-            displayFCLevel(row.fc_level),
+            displayFCLevel(row.min_miss, row.fc_level_flags),
             beatmapInfoMap.size === 0 ? [] :
                 [
                     $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),
@@ -706,12 +780,12 @@ function loadOsuDB(buffer: ArrayBuffer, timestamp: Date) {
     beatmapInfoMapVersion = timestamp;
 }
 
-function initTable(sortKeys: {}[], orderConfig: [number[], number], onSortOrderChanged: () => void) {
+function initTable(sortKeys: {}[], orderConfig: SortOrderConfig, onSortOrderChanged: () => void) {
     const thList = $('#summary-table > thead > tr > th');
     sortKeys.forEach((_, index) => {
         $.data(thList[index], 'thIndex', index);
     });
-    thList.click((event) => {
+    thList.on('click', (event) => {
         let th = $(event.target);
         if (!th.is('th')) th = th.parent('th');
         let sign;
@@ -764,17 +838,13 @@ async function main() {
         $(`#${id}`).on('input', onChange);
     initTable(sortKeys, summaryOrderConfig, onChange);
 
-    const loadData = (data: SummaryRowData[], lastModified: Date) => {
-        $('#last-update-time')
-            .append($('<time>')
-                .attr('datetime', lastModified.toISOString())
-                .text(lastModified.toISOString().split('T')[0]));
-        summaryRows = data.map(x => new SummaryRow(x));
+    const loadData = (lines: string) => {
+        summaryRows = lines.split('\n').filter(s => s !== '').map(line => new SummaryRow(line));
         initUnsortedTableRows();
         drawTableForCurrentFiltering();
         $('#summary-table-loader').hide();
     };
-    $('#db-file-input').change(async event => {
+    $('#db-file-input').on('change', async event => {
         const elem = event.target as HTMLInputElement;
         if (!elem.files) return;
         for (let i = 0; i < elem.files.length; i += 1) {
@@ -792,7 +862,7 @@ async function main() {
         elem.value = '';
     });
 
-    $('#page-prev > a, #page-next > a').click(e => {
+    $('#page-prev > a, #page-next > a').on('click', e => {
         const start = parseInt($('#result-index-start').val() as string);
         const count = parseInt($('#result-count-limit').val() as string);
         const isPrev = e.target.parentElement!.id === 'page-prev';
@@ -811,8 +881,8 @@ async function main() {
         $('.music-control').hide();
     };
 
-    const resp = await fetch('data/summary.json');
-    loadData(await resp.json(), new Date(resp.headers.get('Last-Modified') || '0'));
+    const resp = await fetch('data/summary.csv');
+    loadData(await resp.text());
 }
 
 $(main);
