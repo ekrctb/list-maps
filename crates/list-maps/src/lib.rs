@@ -1,7 +1,6 @@
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
 use anyhow::Context;
-use bstr::BString;
 use serde::de::DeserializeOwned;
 
 pub fn deserialize_iter<T: DeserializeOwned>(
@@ -14,37 +13,17 @@ pub fn deserialize_iter<T: DeserializeOwned>(
     Ok(osu_db_dump::Reader::new(reader).deserialize::<T>()?)
 }
 
-#[derive(serde::Deserialize)]
-pub struct BasicBeatmapSetInfo {
-    pub beatmapset_id: u32,
-    pub artist: BString,
-    pub title: BString,
-    pub creator: BString,
-    pub approved: u8,
-    pub approved_date: BString,
+pub struct BasicBeatmapAndSetInfo<'a, TSet, TMap> {
+    pub set: &'a TSet,
+    pub map: &'a TMap,
 }
 
-#[derive(serde::Deserialize)]
-pub struct BasicBeatmapInfo {
-    pub beatmap_id: u32,
-    pub beatmapset_id: u32,
-    pub version: BString,
-    pub hit_length: u32,
-    pub difficultyrating: f32,
-    pub diff_approach: f32,
+pub struct BeatmapIndex<TSet, TMap> {
+    sets: HashMap<u32, TSet>,
+    maps: HashMap<u32, TMap>,
 }
 
-pub struct BasicBeatmapAndSetInfo<'a> {
-    pub set: &'a BasicBeatmapSetInfo,
-    pub map: &'a BasicBeatmapInfo,
-}
-
-pub struct BasicBeatmapIndex {
-    sets: HashMap<u32, BasicBeatmapSetInfo>,
-    maps: HashMap<u32, BasicBeatmapInfo>,
-}
-
-impl BasicBeatmapIndex {
+impl<TSet, TMap> BeatmapIndex<TSet, TMap> {
     pub fn beatmapset_count(&self) -> usize {
         self.sets.len()
     }
@@ -53,34 +32,79 @@ impl BasicBeatmapIndex {
         self.maps.len()
     }
 
-    pub fn get_beatmapset(&self, beatmapset_id: u32) -> Option<&BasicBeatmapSetInfo> {
+    pub fn get_beatmapset(&self, beatmapset_id: u32) -> Option<&TSet> {
         self.sets.get(&beatmapset_id)
     }
 
-    pub fn get_beatmap(&self, beatmap_id: u32) -> Option<&BasicBeatmapInfo> {
+    pub fn get_beatmap(&self, beatmap_id: u32) -> Option<&TMap> {
         self.maps.get(&beatmap_id)
     }
+}
 
-    pub fn get_beatmap_and_set(&self, beatmap_id: u32) -> Option<BasicBeatmapAndSetInfo<'_>> {
+impl<TSet, TMap> BeatmapIndex<TSet, TMap>
+where
+    TMap: HasBeatmapSetId,
+{
+    pub fn get_beatmap_and_set(
+        &self,
+        beatmap_id: u32,
+    ) -> Option<BasicBeatmapAndSetInfo<'_, TSet, TMap>> {
         self.get_beatmap(beatmap_id).and_then(|map| {
-            self.get_beatmapset(map.beatmapset_id)
+            self.get_beatmapset(map.beatmapset_id())
                 .map(|set| BasicBeatmapAndSetInfo { set, map })
         })
     }
 }
 
-pub fn load_basic_beatmap_index(osu_dump_dir: &Path) -> anyhow::Result<BasicBeatmapIndex> {
+pub trait HasBeatmapId {
+    fn beatmap_id(&self) -> u32;
+}
+
+pub trait HasBeatmapSetId {
+    fn beatmapset_id(&self) -> u32;
+}
+
+#[macro_export]
+macro_rules! impl_beatmap_traits {
+    ($set_type:path, $map_type:path) => {
+        impl $crate::HasBeatmapSetId for $set_type {
+            fn beatmapset_id(&self) -> u32 {
+                self.beatmapset_id
+            }
+        }
+
+        impl $crate::HasBeatmapSetId for $map_type {
+            fn beatmapset_id(&self) -> u32 {
+                self.beatmapset_id
+            }
+        }
+
+        impl $crate::HasBeatmapId for $map_type {
+            fn beatmap_id(&self) -> u32 {
+                self.beatmap_id
+            }
+        }
+    };
+}
+
+pub fn load_beatmap_index<TSet, TMap>(
+    osu_dump_dir: &Path,
+) -> anyhow::Result<BeatmapIndex<TSet, TMap>>
+where
+    TSet: DeserializeOwned + HasBeatmapSetId,
+    TMap: DeserializeOwned + HasBeatmapId,
+{
     let mut sets = HashMap::new();
-    for set in deserialize_iter::<BasicBeatmapSetInfo>(osu_dump_dir, "osu_beatmapsets.sql")? {
+    for set in deserialize_iter::<TSet>(osu_dump_dir, "osu_beatmapsets.sql")? {
         let set = set?;
-        sets.insert(set.beatmapset_id, set);
+        sets.insert(set.beatmapset_id(), set);
     }
 
     let mut maps = HashMap::new();
-    for map in deserialize_iter::<BasicBeatmapInfo>(osu_dump_dir, "osu_beatmaps.sql")? {
+    for map in deserialize_iter::<TMap>(osu_dump_dir, "osu_beatmaps.sql")? {
         let map = map?;
-        maps.insert(map.beatmap_id, map);
+        maps.insert(map.beatmap_id(), map);
     }
 
-    Ok(BasicBeatmapIndex { sets, maps })
+    Ok(BeatmapIndex { sets, maps })
 }

@@ -4,7 +4,8 @@ mod show_beatmap;
 use std::path::PathBuf;
 
 use clap::Clap;
-use list_maps::{load_basic_beatmap_index, BasicBeatmapIndex};
+use list_maps::{load_beatmap_index, BeatmapIndex, HasBeatmapId, HasBeatmapSetId};
+use serde::de::DeserializeOwned;
 
 #[derive(Clap)]
 pub struct Opts {
@@ -20,9 +21,13 @@ pub struct Opts {
 }
 
 impl Opts {
-    pub fn load_basic_beatmap_index(&self) -> anyhow::Result<BasicBeatmapIndex> {
+    pub fn load_beatmap_index<TSet, TMap>(&self) -> anyhow::Result<BeatmapIndex<TSet, TMap>>
+    where
+        TSet: DeserializeOwned + HasBeatmapSetId,
+        TMap: DeserializeOwned + HasBeatmapId + HasBeatmapSetId,
+    {
         eprintln!("Loading beatmaps...");
-        let index = load_basic_beatmap_index(&self.osu_dump_dir)?;
+        let index = load_beatmap_index(&self.osu_dump_dir)?;
         eprintln!(
             "Loaded {} beatmap sets of {} beatmaps.",
             index.beatmapset_count(),
