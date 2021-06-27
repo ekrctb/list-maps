@@ -9,13 +9,11 @@ struct BeatmapSet {
     bpm: f32,
 }
 
-fn main() {
     let mut reader = Reader::new(BufReader::new(File::open("osu_beatmapsets.sql")?));
     for result in reader.deserialize() {
-        let set: BeatmapSet<> = result?;
+        let set: BeatmapSet = result?;
         println!("{}: {} with {}bpm", set.beatmapset_id, set.title, set.bpm);
     }
-}
 ```
 
 - Only support `DeserializeOwned` types for the iterator iterface.
@@ -67,7 +65,7 @@ impl serde::de::Error for Error {
 }
 
 impl Error {
-    fn from_parse_error<'a>(line: u64, column: usize, input: &'a [u8], expected: &str) -> Self {
+    fn from_parse_error(line: u64, column: usize, input: &[u8], expected: &str) -> Self {
         Self::Parse(format!(
             "at {}:{}: expected {} in {}",
             line,
@@ -358,7 +356,7 @@ impl<'a, 'de> serde::Deserializer<'de> for &'a mut ValueTupleDeserializer<'de> {
             Some(LiteralKind::String) => self.deserialize_bytes(visitor),
             Some(LiteralKind::Integer) => self.deserialize_i64(visitor),
             Some(LiteralKind::Decimal) => self.deserialize_f64(visitor),
-            None => return Err(self.make_parse_error(span, "null, string, or number")),
+            None => Err(self.make_parse_error(span, "null, string, or number")),
         }
     }
 
@@ -440,7 +438,7 @@ impl<'a, 'de> serde::Deserializer<'de> for &'a mut ValueTupleDeserializer<'de> {
         if let Some(borrowed) = self.next_string()? {
             visitor.visit_borrowed_bytes(borrowed)
         } else {
-            visitor.visit_byte_buf(std::mem::replace(&mut self.buf, Vec::new()))
+            visitor.visit_byte_buf(std::mem::take(&mut self.buf))
         }
     }
 

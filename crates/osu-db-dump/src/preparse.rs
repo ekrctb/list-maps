@@ -78,10 +78,8 @@ pub fn value_tuple<'a>(input: &mut &'a [u8], end_index: &mut [usize]) -> Result<
     }
     let mut first = true;
     for out in end_index.iter_mut() {
-        if !std::mem::replace(&mut first, false) {
-            if !next_eq(input, b',') {
-                return Err("more value");
-            }
+        if !std::mem::replace(&mut first, false) && !next_eq(input, b',') {
+            return Err("more value");
         }
         if !value(input) {
             return Err("value");

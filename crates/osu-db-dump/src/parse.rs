@@ -46,7 +46,7 @@ pub fn string_literal_opt_borrow<'a>(
         });
         input = &input[2..];
     }
-    return Ok(None);
+    Ok(None)
 }
 
 pub fn string_literal(input: &[u8], buf: &mut Vec<u8>) -> Result<(), &'static str> {
@@ -138,6 +138,7 @@ pub fn column_name(input: &mut &[u8], out: &mut String) -> Result<(), &'static s
     }
 }
 
+#[derive(Default)]
 pub struct TableDefParser {
     in_table_def: bool,
     columns: Vec<String>,
@@ -145,10 +146,7 @@ pub struct TableDefParser {
 
 impl TableDefParser {
     pub fn new() -> Self {
-        Self {
-            in_table_def: false,
-            columns: Vec::new(),
-        }
+        Self::default()
     }
 
     pub fn feed_line(&mut self, input: &mut &[u8]) -> Result<bool, &'static str> {
@@ -234,11 +232,9 @@ impl ValueTupleParser {
             } else {
                 preparse::line_rest(input);
             }
-        } else {
-            if !preparse::value_tuple_separator(input) {
-                preparse::insert_line_end(input)?;
-                self.in_insert_line = false;
-            }
+        } else if !preparse::value_tuple_separator(input) {
+            preparse::insert_line_end(input)?;
+            self.in_insert_line = false;
         };
         if !self.in_insert_line {
             Ok(None)
