@@ -22,29 +22,19 @@ pub struct Beatmap {
     pub version: BString,
 }
 
+list_maps::impl_has_primary_id! {
+    beatmapset_id for BeatmapSet;
+    beatmap_id for Beatmap;
+}
+
 #[derive(clap::Clap)]
 #[clap(about = "Show beatmap info given in standard input")]
 pub struct Opts {}
 
 impl Opts {
     pub fn run(&self, super_opts: &super::Opts) -> anyhow::Result<()> {
-        eprintln!("Loading beatmaps...");
-
-        let sets = super_opts
-            .deserialize_iter(Db::Beatmapsets)?
-            .map(|r| r.map(|set: BeatmapSet| (set.beatmapset_id, set)))
-            .collect::<Result<HashMap<_, _>, _>>()?;
-
-        let maps = super_opts
-            .deserialize_iter(Db::Beatmaps)?
-            .map(|r| r.map(|map: Beatmap| (map.beatmap_id, map)))
-            .collect::<Result<HashMap<_, _>, _>>()?;
-
-        eprintln!(
-            "Loaded {} beatmap sets of {} beatmaps.",
-            sets.len(),
-            maps.len()
-        );
+        let sets = super_opts.load_all::<BeatmapSet>(Db::Beatmapsets)?;
+        let maps = super_opts.load_all::<Beatmap>(Db::Beatmaps)?;
 
         let beatmap_id_matcher = regex::Regex::new(r"fruits/(\d+)").unwrap();
         let stdin = std::io::stdin();

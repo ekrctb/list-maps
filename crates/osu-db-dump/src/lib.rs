@@ -9,11 +9,10 @@ pub mod preparse;
 mod test_utils;
 pub mod value;
 
-pub use de::Error;
+pub use de::{Error, Reader};
 pub type Result<T, E = Error> = std::result::Result<T, E>;
-pub use de::Reader;
 use serde::Serialize;
-pub use value::AnyValue;
+pub use value::{AnyValue, Mods};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]

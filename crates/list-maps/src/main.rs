@@ -1,10 +1,11 @@
+mod find_score;
 mod parse_test;
 mod show_beatmap;
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use clap::Clap;
-use list_maps::deserialize_iter;
+use list_maps::{deserialize_iter, load_all, HasPrimaryId};
 use serde::de::DeserializeOwned;
 
 #[derive(Clap)]
@@ -27,12 +28,20 @@ impl Opts {
     ) -> anyhow::Result<impl Iterator<Item = osu_db_dump::Result<T>>> {
         deserialize_iter(&self.osu_dump_dir, db)
     }
+
+    pub fn load_all<T: DeserializeOwned + HasPrimaryId>(
+        &self,
+        db: osu_db_dump::Db,
+    ) -> anyhow::Result<HashMap<u32, T>> {
+        load_all(&self.osu_dump_dir, db)
+    }
 }
 
 #[derive(Clap)]
 enum SubCommand {
     ParseTest(parse_test::Opts),
     ShowBeatmap(show_beatmap::Opts),
+    FindScore(find_score::Opts),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -40,6 +49,7 @@ fn main() -> anyhow::Result<()> {
     match &opts.sub_command {
         SubCommand::ParseTest(sub) => sub.run(&opts)?,
         SubCommand::ShowBeatmap(sub) => sub.run(&opts)?,
+        SubCommand::FindScore(sub) => sub.run(&opts)?,
     }
 
     Ok(())
