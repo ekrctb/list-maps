@@ -1,7 +1,12 @@
 /*!
-    So, the goal is freely select properties like:
 
-```rust
+You can select properties freely like:
+
+```rust,no_run
+# use osu_db_dump::Reader;
+# use bstr::BString;
+# use std::{io::BufReader, fs::File};
+
 #[derive(serde::Deserialize)]
 struct BeatmapSet {
     beatmapset_id: u32,
@@ -9,11 +14,15 @@ struct BeatmapSet {
     bpm: f32,
 }
 
-    let mut reader = Reader::new(BufReader::new(File::open("osu_beatmapsets.sql")?));
-    for result in reader.deserialize() {
-        let set: BeatmapSet = result?;
-        println!("{}: {} with {}bpm", set.beatmapset_id, set.title, set.bpm);
-    }
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+let mut reader = Reader::new(BufReader::new(File::open("osu_beatmapsets.sql")?));
+for result in reader.deserialize()? {
+    let set: BeatmapSet = result?;
+    println!("{}: {} with {}bpm", set.beatmapset_id, set.title, set.bpm);
+}
+# Ok(())
+# }
+
 ```
 
 - Only support `DeserializeOwned` types for the iterator iterface.

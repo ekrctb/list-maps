@@ -254,23 +254,32 @@ mod test {
     use super::*;
     use crate::test_utils::*;
 
+    fn string_literal_consume(input: &mut &[u8], buf: &mut Vec<u8>) -> Result<(), &'static str> {
+        let r = string_literal(input, buf);
+        *input = &input[input.len()..];
+        r
+    }
+
     #[test]
     fn parse_string_literal() {
-        check_accept(|i| string_literal(i, &mut Vec::new()), "''");
+        check_accept(|i| string_literal_consume(i, &mut Vec::new()), "''");
 
         let mut buf = Vec::new();
-        check_accept(|i| string_literal(i, &mut buf), r#"'\0\'\"\b\n\r\t\Z\\'"#);
+        check_accept(
+            |i| string_literal_consume(i, &mut buf),
+            r#"'\0\'\"\b\n\r\t\Z\\'"#,
+        );
         assert_eq!(buf, b"\0\'\"\x08\n\r\t\x1a\\");
         buf.clear();
 
         check_reject(
-            |i| string_literal(i, &mut Vec::new()),
+            |i| string_literal_consume(i, &mut Vec::new()),
             "",
             Some("string literal"),
         );
 
         check_reject(
-            |i| string_literal(i, &mut Vec::new()),
+            |i| string_literal_consume(i, &mut Vec::new()),
             r"'\!'",
             Some("escape sequence"),
         );
