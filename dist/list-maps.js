@@ -255,7 +255,7 @@ function drawTableForCurrentFiltering() {
         return true;
     });
     const prevIndex = Array(summaryRows.length);
-    for (const ord of [summaryOrderConfig.defaultOrder, ...currentSortOrder]) {
+    for (const ord of currentSortOrder) {
         if (ord === 0)
             continue;
         indices.forEach((x, i) => prevIndex[x] = i);
@@ -781,6 +781,12 @@ function main() {
         initTable(sortKeys, summaryOrderConfig, onChange);
         const loadData = (lines) => {
             summaryRows = lines.split('\n').filter(s => s !== '').map(line => new SummaryRow(line));
+            // Sort by the default ordering.
+            summaryRows.sort((x, y) => {
+                if (x.approved_date_string !== y.approved_date_string)
+                    return x.approved_date_string > y.approved_date_string ? -1 : 1;
+                return x.stars - y.stars;
+            });
             initUnsortedTableRows();
             drawTableForCurrentFiltering();
             $('#summary-table-loader').hide();
