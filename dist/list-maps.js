@@ -18,22 +18,18 @@ class SummaryRow {
             this.approved_status,
             this.mode,
             this.display_string,
-            this.stars,
-            this.pp,
             this.hit_length,
             this.max_combo,
             this.approach_rate,
             this.circle_size,
-            this.min_miss,
-            this.fc_level_flags,
+            this.total_fc,
+            this.total_fc_flags,
         ] = JSON.parse(`[${line}]`);
         this.approved_date = new Date(this.approved_date_string.replace(' ', 'T') + '+08:00');
         this.display_string_lower = this.display_string.toLowerCase();
-        this.max_fc_level = -this.min_miss;
-        for (let i = 0; this.fc_level_flags >> i; i += 1)
-            if (this.fc_level_flags >> i & 1)
-                this.max_fc_level = i;
         this.info = null;
+        this.stars = 0;
+        this.pp = 0;
     }
 }
 let summaryRows = [];
@@ -111,7 +107,8 @@ const sortKeys = [
     (x) => x.max_combo,
     (x) => x.approach_rate,
     (x) => x.circle_size,
-    (x) => x.max_fc_level,
+    (x) => x.total_fc,
+    (x) => x.total_fc_flags,
     (x) => !x.info ? MINIMUM_DATE.valueOf() : x.info.lastPlayed.valueOf()
 ];
 function stringifyObject(obj) {
@@ -132,7 +129,8 @@ function drawTableForCurrentFiltering() {
     const filter_approved_status = parseInt($('#filter-approved-status').val());
     const filter_mode = parseInt($('#filter-mode').val());
     const filter_search_query = new SearchQuery($('#filter-search-query').val());
-    const filter_fc_level = parseInt($('#filter-fc-level').val());
+    // const filter_fc_level = parseInt($('#filter-fc-level').val() as string);
+    const filter_fc_level = 0;
     const filter_local_data = parseInt($('#filter-local-data').val());
     const index_start = parseInt($('#result-index-start').val()) || 0;
     const count_limit = parseInt($('#result-count-limit').val()) || 100;
@@ -182,50 +180,7 @@ function drawTableForCurrentFiltering() {
         if (!filter_search_query.check(row))
             return false;
         if (filter_fc_level !== 0) {
-            const flags = row.fc_level_flags;
-            const F = FC_LEVEL_FLAGS_EXTRA;
-            switch (filter_fc_level) {
-                case 1:
-                    if (flags !== 0)
-                        return false;
-                    break;
-                case 2:
-                    if ((flags & F.EZ_PLUS) === 0 || (flags & F.GT_EZ) !== 0)
-                        return false;
-                    break;
-                case 3:
-                    if ((flags & F.GT_EZ) === 0 || (flags & F.GT_NM) !== 0)
-                        return false;
-                    break;
-                case 4:
-                    if ((flags & F.GT_NM) === 0 || (flags & F.GT_HD) !== 0)
-                        return false;
-                    break;
-                case 5:
-                    if ((flags & F.GT_HD) === 0 || (flags & F.GT_HR) !== 0)
-                        return false;
-                    break;
-                case 6:
-                    if ((flags & F.GT_HR) === 0)
-                        return false;
-                    break;
-                case 7:
-                    if ((flags & F.EZFL) === 0)
-                        return false;
-                    break;
-                case 8:
-                    if ((flags & F.FL_PLUS) === 0)
-                        return false;
-                    break;
-                case 9:
-                    if ((flags & F.DT_PLUS) === 0)
-                        return false;
-                    break;
-                case 10:
-                    if ((flags & F.HRDT_PLUS) === 0)
-                        return false;
-                    break;
-            }
+            // TODO
         }
         if (filter_local_data !== 0) {
             const flags = get_local_data_flags(row);
@@ -332,7 +287,7 @@ function setQueryAccordingToHash() {
     $('#filter-approved-status').val(parseInt(obj.s));
     $('#filter-mode').val(parseInt(obj.m));
     $('#filter-search-query').val(obj.q);
-    $('#filter-fc-level').val(parseInt(obj.l));
+    // $('#filter-fc-level').val(parseInt(obj.l));
     $('#filter-local-data').val(parseInt(obj.d));
     $('#result-index-start').val(parseInt(obj.i));
     $('#result-count-limit').val(parseInt(obj.n));
@@ -360,69 +315,25 @@ const rankAchievedClass = [
     'SSH', 'SH', 'SS', 'S', 'A',
     'B', 'C', 'D', 'F', '-'
 ];
-const FC_LEVEL_FLAGS = {
-    HT: 1 << 0,
-    EZ: 1 << 1,
-    NM: 1 << 2,
-    HD: 1 << 3,
-    HR: 1 << 4,
-    HDHR: 1 << 5,
-    EZFL: 1 << 6,
-    HTFL: 1 << 7,
-    FL: 1 << 8,
-    HRFL: 1 << 9,
-    EZDT: 1 << 10,
-    DT: 1 << 11,
-    HDDT: 1 << 12,
-    HRDT: 1 << 13,
-};
-const FC_LEVEL_FLAGS_EXTRA = (() => {
-    const F = FC_LEVEL_FLAGS;
-    const ALL = (F.HRDT << 1) - 1;
-    const GT_EZ = ALL & ~(F.HT | F.HTFL | F.EZ);
-    const GT_NM = GT_EZ & ~(F.EZFL | F.EZDT | F.NM);
-    const GT_HD = GT_NM & ~(F.HD | F.DT);
-    const GT_HR = GT_HD & ~(F.HR | F.HDDT);
-    const GT_HDHR = GT_HR & ~(F.HDHR | F.FL);
-    const EZ_PLUS = F.EZ | F.EZFL | F.EZDT;
-    const FL_PLUS = F.HTFL | F.FL;
-    const DT_PLUS = F.DT | F.HDDT | F.HRDT;
-    const HRDT_PLUS = F.HRDT;
-    return Object.assign({ ALL, GT_EZ, GT_NM, GT_HD, GT_HR, GT_HDHR, EZ_PLUS, FL_PLUS, DT_PLUS, HRDT_PLUS }, F);
-})();
-function displayFCLevel(min_miss, fc_level_flags) {
-    if (min_miss === 999)
-        return 'No scores';
-    if (fc_level_flags === 0)
-        return `${min_miss}xMiss`;
-    const fs = [];
-    if (fc_level_flags & FC_LEVEL_FLAGS.HRDT)
-        fs.push("HRDT");
-    else if (fc_level_flags & FC_LEVEL_FLAGS.HDDT)
-        fs.push("HDDT");
-    else if (fc_level_flags & FC_LEVEL_FLAGS.DT)
-        fs.push("DT");
-    else if (fc_level_flags & FC_LEVEL_FLAGS.EZDT)
-        fs.push("EZDT");
-    if (fc_level_flags & FC_LEVEL_FLAGS.HRFL)
-        fs.push("HRFL");
-    else if (fc_level_flags & FC_LEVEL_FLAGS.FL)
-        fs.push("FL");
-    else if (fc_level_flags & FC_LEVEL_FLAGS.HTFL)
-        fs.push("HTFL");
-    else if (fc_level_flags & FC_LEVEL_FLAGS.EZFL)
-        fs.push("EZFL");
-    if (fc_level_flags & FC_LEVEL_FLAGS.HDHR)
-        fs.push("HDHR");
-    else if (fc_level_flags & FC_LEVEL_FLAGS.HR)
-        fs.push("HR");
-    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_HD) && (fc_level_flags & FC_LEVEL_FLAGS.HD))
-        fs.push("HD");
-    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_NM) && (fc_level_flags & FC_LEVEL_FLAGS.NM))
-        fs.push("NM");
-    if (!(fc_level_flags & FC_LEVEL_FLAGS_EXTRA.GT_EZ) && (fc_level_flags & FC_LEVEL_FLAGS.EZ))
-        fs.push("EZ");
-    return fs.join(', ');
+function displayMinMissOrFcCount(min_miss_or_fc_count) {
+    if (min_miss_or_fc_count === 0) {
+        return "No scores";
+    }
+    else if (min_miss_or_fc_count < 0) {
+        return `${-min_miss_or_fc_count}xMiss`;
+    }
+    else {
+        return `${min_miss_or_fc_count} FCs`;
+    }
+}
+function displayFcFlags(fc_flags) {
+    if (fc_flags & 8)
+        return '+HDFL';
+    else if (fc_flags & 4)
+        return '+FL';
+    else if (fc_flags & 2)
+        return '+HD';
+    return '';
 }
 let beatmapInfoMapUsedVersion = MINIMUM_DATE;
 function initUnsortedTableRows() {
@@ -479,7 +390,8 @@ function initUnsortedTableRows() {
         row.max_combo.toString(),
         row.approach_rate.toFixed(1),
         row.circle_size.toFixed(1),
-        displayFCLevel(row.min_miss, row.fc_level_flags),
+        displayMinMissOrFcCount(row.total_fc),
+        displayFcFlags(row.total_fc_flags),
         beatmapInfoMap.size === 0 ? [] :
             [
                 $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),

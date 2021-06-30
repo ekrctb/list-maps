@@ -59,6 +59,7 @@ FLAGS:
 To generate the file used by the frontend, run:
 
 ```shell
+mkdir -p data
 cargo run --release -- render-maps > ./data/summary.csv
 ```
 
