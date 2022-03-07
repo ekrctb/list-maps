@@ -35,7 +35,7 @@ pub struct Beatmap {
     pub diff_approach: f32,
     pub diff_size: f32,
     pub playmode: Ruleset,
-    pub approved: u8,
+    pub approved: i8,
 }
 
 #[derive(serde::Deserialize)]
@@ -329,6 +329,10 @@ impl Opts {
         let mut filtered_maps = Vec::new();
         for map in super_opts.deserialize_iter(Db::Beatmaps)? {
             let map: Beatmap = map?;
+
+            if map.approved <= 0 {
+                continue;
+            }
 
             if !(map.playmode == self.mode || (map.playmode == Ruleset::Osu && !self.no_convert)) {
                 continue;
