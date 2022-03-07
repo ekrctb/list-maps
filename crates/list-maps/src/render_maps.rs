@@ -476,7 +476,7 @@ impl Opts {
             map_id = info.map.beatmap_id,
             mods = mods.bits(),
             stars = stars,
-            fc_count = stats.fc_count,
+            fc_count = stats.min_miss_or_fc_count(),
             fc_flags = stats.fc_flags
         )?;
         Ok(())
