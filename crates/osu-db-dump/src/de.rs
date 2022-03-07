@@ -676,6 +676,7 @@ mod test {
         check_deserializer_one(b"('str')", "str".to_string());
         check_deserializer_one(br"('es\'ca\\pe\0xxx')", "es'ca\\pe\0xxx".to_string());
         check_deserializer_one(b"('null')", Some("null".to_string()));
+        check_deserializer_one(b"(_binary 'binary')", "binary".to_string());
     }
 
     #[test]

@@ -39,7 +39,7 @@ fn next(input: &mut &[u8]) -> Option<u8> {
 }
 
 pub fn string_literal(input: &mut &[u8]) -> bool {
-    if !next_eq(input, b'\'') {
+    if !prefix_eq(input, b"_binary '") && !next_eq(input, b'\'') {
         return false;
     }
     while let Some(b) = next(input) {
@@ -187,6 +187,8 @@ mod test {
 
         check_accept(string_literal, "'");
         check_accept(string_literal, r"'\");
+
+        check_accept(string_literal, r"_binary 'string'");
     }
 
     #[test]

@@ -9,6 +9,9 @@ pub fn string_literal_opt_borrow<'a>(
     mut input: &'a [u8],
     buf: &mut Vec<u8>,
 ) -> Result<Option<&'a [u8]>, &'static str> {
+    if let Some(rest) = input.strip_prefix(b"_binary ") {
+        input = rest;
+    }
     if input.len() < 2 || input[0] != b'\'' || input[input.len() - 1] != b'\'' {
         return Err("string literal");
     }
@@ -42,7 +45,7 @@ pub fn string_literal_opt_borrow<'a>(
             b't' => b'\t',
             b'Z' => 0x1a,
             b'\\' => b'\\',
-            _ => return Err("escape sequence"),
+            b => b,
         });
         input = &input[2..];
     }
@@ -114,6 +117,7 @@ pub fn infer_kind(span: &[u8]) -> Option<LiteralKind> {
     match span.first() {
         Some(b'N') => Some(LiteralKind::Null),
         Some(b'\'') => Some(LiteralKind::String),
+        Some(b'_') => Some(LiteralKind::String),
         Some(b'0'..=b'9') | Some(b'-') => {
             if span.iter().any(|&b| b == b'.' || b == b'e') {
                 Some(LiteralKind::Decimal)

@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 use bstr::BString;
 use osu_db_dump::{value::Ruleset, Db, Mods};
+use serde::{Deserialize, Deserializer};
 
 #[derive(serde::Deserialize)]
 pub struct BeatmapSet {
@@ -15,6 +16,7 @@ pub struct BeatmapSet {
     pub artist: BString,
     pub title: BString,
     pub creator: BString,
+    #[serde(deserialize_with = "deserialize_approved_date")]
     pub approved_date: BString,
 }
 
@@ -65,6 +67,15 @@ list_maps::impl_has_primary_id! {
     beatmap_id for Beatmap;
     user_id for User;
     score_id for Score;
+}
+
+fn deserialize_approved_date<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<BString, D::Error> {
+    match <Option<BString>>::deserialize(deserializer)? {
+        Some(date) => Ok(date),
+        None => Ok("2000-01-01 00:00:00".into()),
+    }
 }
 
 // TODO: for each "difficulty mods",
