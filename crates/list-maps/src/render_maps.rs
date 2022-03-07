@@ -84,10 +84,6 @@ fn deserialize_approved_date<'de, D: Deserializer<'de>>(
     }
 }
 
-// TODO: for each "difficulty mods",
-// - FC count or min miss
-// - flags of FCs of additional mods (HD, FL)
-
 pub struct ModsIndex {
     mask: Mods,
     mods: Vec<Mods>,
