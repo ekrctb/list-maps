@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 const MINIMUM_DATE = new Date(0);
 class SummaryRow {
     constructor(line) {
+        this.modsInfo = {};
         [
             this.approved_date_string,
             this.beatmapset_id,
@@ -42,6 +43,35 @@ var Mods;
     Mods[Mods["HALF_TIME"] = 256] = "HALF_TIME";
     Mods[Mods["FLASHLIGHT"] = 1024] = "FLASHLIGHT";
 })(Mods || (Mods = {}));
+class ModsRow {
+    constructor(beatmap_id, mods, stars, fc_count, fc_flags, info) {
+        this.beatmap_id = beatmap_id;
+        this.mods = mods;
+        this.stars = stars;
+        this.fc_count = fc_count;
+        this.fc_flags = fc_flags;
+        this.max_combo = info.max_combo;
+        this.ar = calculateApproachRate(info.approach_rate, this.mods);
+        this.cs = calculateCircleSize(info.circle_size, this.mods);
+        this.pp = calculatePerformancePoint(this.stars, this.max_combo, this.ar);
+    }
+}
+function calculateApproachRate(ar, mods) {
+    if (mods & Mods.HARD_ROCK)
+        ar = Math.max(ar * 1.5, 10);
+    if (mods & Mods.EASY)
+        ar /= 2;
+    const clockRate = mods & Mods.DOUBLE_TIME ? 1.5 : mods & Mods.HALF_TIME ? 0.75 : 1;
+    const preempt = (ar < 5 ? 1200 + (5 - ar) * 120 : 1200 - (ar - 5) * 150) / clockRate;
+    return preempt > 1200 ? (1800 - preempt) / 120 : 5 + (1200 - preempt) / 150;
+}
+function calculateCircleSize(cs, mods) {
+    if (mods & Mods.HARD_ROCK)
+        cs = Math.max(cs * 1.3, 10);
+    if (mods & Mods.EASY)
+        cs /= 2;
+    return cs;
+}
 // version 2020-03
 function calculatePerformancePoint(stars, max_combo, ar, combo = max_combo, miss = 0, mods = Mods.NONE) {
     let value = Math.pow(5 * Math.max(1, stars / 0.0049) - 4, 2) / 100000;
@@ -159,7 +189,6 @@ function drawTableForCurrentFiltering() {
     const filter_approved_status = parseInt($('#filter-approved-status').val());
     const filter_mode = parseInt($('#filter-mode').val());
     const filter_search_query = new SearchQuery($('#filter-search-query').val());
-    // const filter_fc_level = parseInt($('#filter-fc-level').val() as string);
     const filter_fc_level = 0;
     const filter_local_data = parseInt($('#filter-local-data').val());
     const index_start = parseInt($('#result-index-start').val()) || 0;
@@ -317,7 +346,6 @@ function setQueryAccordingToHash() {
     $('#filter-approved-status').val(parseInt(obj.s));
     $('#filter-mode').val(parseInt(obj.m));
     $('#filter-search-query').val(obj.q);
-    // $('#filter-fc-level').val(parseInt(obj.l));
     $('#filter-local-data').val(parseInt(obj.d));
     $('#result-index-start').val(parseInt(obj.i));
     $('#result-count-limit').val(parseInt(obj.n));
@@ -369,8 +397,8 @@ let beatmapInfoMapUsedVersion = MINIMUM_DATE;
 function initUnsortedTableRows() {
     if (summaryRows.length === 0)
         return false;
-    if (unsortedTableRows.length !== 0 && beatmapInfoMapUsedVersion === beatmapInfoMapVersion)
-        return false;
+    // if (unsortedTableRows.length !== 0 && beatmapInfoMapUsedVersion === beatmapInfoMapVersion)
+    //     return false;
     beatmapInfoMapUsedVersion = beatmapInfoMapVersion;
     if (beatmapInfoMap.size !== 0) {
         summaryRows.forEach(row => {
@@ -379,6 +407,7 @@ function initUnsortedTableRows() {
                 row.info = info;
         });
     }
+    const mods = parseInt($('#difficulty-mods').val());
     const mode_icons = [
         'fa fa-exchange',
         '',
@@ -394,42 +423,45 @@ function initUnsortedTableRows() {
         'fa fa-check',
         'fa fa-heart-o',
     ];
-    unsortedTableRows = summaryRows.map(row => $('<tr>').append([
-        [
-            $('<i>').addClass(approved_status_icons[row.approved_status + 2]),
-            document.createTextNode(row.approved_date_string.split(' ')[0])
-        ],
-        $('<div>').addClass('map-cell').append([
-            $('<div>').append([
-                $('<i>').addClass(mode_icons[row.mode]),
-                $('<a>')
-                    .attr('href', `https://osu.ppy.sh/beatmapsets/${row.beatmapset_id}#fruits/${row.beatmap_id}`)
-                    .attr('target', '_blank')
-                    .text(row.display_string)
-            ]),
-            row.beatmap_id > 0 ? $('<div>').append([
-                $('<a><i class="fa fa-music">')
-                    .attr('href', `javascript:toggleMusic("https://b.ppy.sh/preview/${row.beatmapset_id}.mp3")`),
-                $('<a><i class="fa fa-cloud-download">')
-                    .attr('href', `osu://dl/${row.beatmapset_id}`)
-            ]) : $()
-        ]),
-        row.stars.toFixed(2),
-        row.pp.toFixed(0),
-        `${Math.floor(row.hit_length / 60)}:${pad(Math.floor(row.hit_length % 60))}`,
-        row.max_combo.toString(),
-        row.approach_rate.toFixed(1),
-        row.circle_size.toFixed(1),
-        displayMinMissOrFcCount(row.total_fc),
-        displayFcFlags(row.total_fc_flags),
-        beatmapInfoMap.size === 0 ? [] :
+    unsortedTableRows = summaryRows.map(row => {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+        return $('<tr>').append([
             [
-                $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),
-                $('<span>').addClass('rank-' + rankAchievedClass[!row.info ? 9 : row.info.rankAchieved]),
-                $('<span>').text(!row.info || row.info.lastPlayed.valueOf() === MINIMUM_DATE.valueOf()
-                    ? '---' : formatDate(row.info.lastPlayed))
-            ]
-    ].map(x => $('<td>').append(x)))[0]);
+                $('<i>').addClass(approved_status_icons[row.approved_status + 2]),
+                document.createTextNode(row.approved_date_string.split(' ')[0])
+            ],
+            $('<div>').addClass('map-cell').append([
+                $('<div>').append([
+                    $('<i>').addClass(mode_icons[row.mode]),
+                    $('<a>')
+                        .attr('href', `https://osu.ppy.sh/beatmapsets/${row.beatmapset_id}#fruits/${row.beatmap_id}`)
+                        .attr('target', '_blank')
+                        .text(row.display_string)
+                ]),
+                row.beatmap_id > 0 ? $('<div>').append([
+                    $('<a><i class="fa fa-music">')
+                        .attr('href', `javascript:toggleMusic("https://b.ppy.sh/preview/${row.beatmapset_id}.mp3")`),
+                    $('<a><i class="fa fa-cloud-download">')
+                        .attr('href', `osu://dl/${row.beatmapset_id}`)
+                ]) : $()
+            ]),
+            ((_b = (_a = row.modsInfo[mods]) === null || _a === void 0 ? void 0 : _a.stars) !== null && _b !== void 0 ? _b : row.stars).toFixed(2),
+            ((_d = (_c = row.modsInfo[mods]) === null || _c === void 0 ? void 0 : _c.pp) !== null && _d !== void 0 ? _d : row.pp).toFixed(0),
+            `${Math.floor(row.hit_length / 60)}:${pad(Math.floor(row.hit_length % 60))}`,
+            ((_f = (_e = row.modsInfo[mods]) === null || _e === void 0 ? void 0 : _e.max_combo) !== null && _f !== void 0 ? _f : row.max_combo).toString(),
+            ((_h = (_g = row.modsInfo[mods]) === null || _g === void 0 ? void 0 : _g.ar) !== null && _h !== void 0 ? _h : row.approach_rate).toFixed(1),
+            ((_k = (_j = row.modsInfo[mods]) === null || _j === void 0 ? void 0 : _j.cs) !== null && _k !== void 0 ? _k : row.circle_size).toFixed(1),
+            displayMinMissOrFcCount((_m = (_l = row.modsInfo[mods]) === null || _l === void 0 ? void 0 : _l.fc_count) !== null && _m !== void 0 ? _m : row.total_fc),
+            displayFcFlags((_p = (_o = row.modsInfo[mods]) === null || _o === void 0 ? void 0 : _o.fc_flags) !== null && _p !== void 0 ? _p : row.total_fc_flags),
+            beatmapInfoMap.size === 0 ? [] :
+                [
+                    $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),
+                    $('<span>').addClass('rank-' + rankAchievedClass[!row.info ? 9 : row.info.rankAchieved]),
+                    $('<span>').text(!row.info || row.info.lastPlayed.valueOf() === MINIMUM_DATE.valueOf()
+                        ? '---' : formatDate(row.info.lastPlayed))
+                ]
+        ].map(x => $('<td>').append(x)))[0];
+    });
     unsortedTableRowsChanged = true;
     return true;
 }
@@ -704,6 +736,32 @@ function setMusic(uri) {
         $('.music-control').hide();
     }
 }
+const difficultyDataCache = {};
+function changeDifficultyMods() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const mods = parseInt($('#difficulty-mods').val());
+        if (mods !== -1 && difficultyDataCache[mods] === undefined) {
+            const summaryRowMap = {};
+            for (const row of summaryRows) {
+                summaryRowMap[row.beatmap_id] = row;
+            }
+            const lines = yield (yield fetch(`data/mods-${mods}.csv`)).text();
+            for (const line of lines.split('\n').filter(s => s !== '')) {
+                const values = JSON.parse(`[${line}]`);
+                const beatmap_id = values[0];
+                const info = summaryRowMap[beatmap_id];
+                if (info === undefined) {
+                    continue;
+                }
+                info.modsInfo[mods] = new ModsRow(beatmap_id, values[1], values[2], values[3], values[4], info);
+            }
+            ;
+            difficultyDataCache[mods] = true;
+        }
+        initUnsortedTableRows();
+        drawTableForCurrentFiltering();
+    });
+}
 const LOCAL_STORAGE_KEY_VOLUME = 'list-maps/volume';
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -712,11 +770,11 @@ function main() {
             setQueryAccordingToHash();
             drawTableForCurrentFiltering();
         });
+        $('#difficulty-mods').on('change', changeDifficultyMods);
         const onChange = () => {
             drawTableForCurrentFiltering();
         };
-        for (const id of ['filter-approved-status', 'filter-mode', 'filter-fc-level', 'filter-local-data',
-            'result-index-start', 'result-count-limit'])
+        for (const id of ['filter-approved-status', 'filter-mode', 'filter-local-data', 'result-index-start', 'result-count-limit'])
             $(`#${id}`).on('change', onChange);
         for (const id of ['filter-search-query'])
             $(`#${id}`).on('input', onChange);

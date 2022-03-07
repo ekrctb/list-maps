@@ -18,6 +18,7 @@ class SummaryRow {
     info: BeatmapInfo | null;
     stars: number;
     pp: number;
+    modsInfo: Record<number, ModsRow> = {};
     constructor(line: string) {
         [
             this.approved_date_string,
@@ -50,6 +51,45 @@ enum Mods {
     DOUBLE_TIME = 64,
     HALF_TIME = 256,
     FLASHLIGHT = 1024,
+}
+
+class ModsRow {
+    max_combo: number;
+    ar: number;
+    cs: number;
+    pp: number;
+
+    constructor(
+        public beatmap_id: number,
+        public mods: number,
+        public stars: number,
+        public fc_count: number,
+        public fc_flags: number,
+        info: SummaryRow) {
+        this.max_combo = info.max_combo;
+        this.ar = calculateApproachRate(info.approach_rate, this.mods);
+        this.cs = calculateCircleSize(info.circle_size, this.mods);
+        this.pp = calculatePerformancePoint(this.stars, this.max_combo, this.ar);
+    }
+}
+
+function calculateApproachRate(ar: number, mods: Mods): number {
+    if (mods & Mods.HARD_ROCK)
+        ar = Math.max(ar * 1.5, 10);
+    if (mods & Mods.EASY)
+        ar /= 2;
+
+    const clockRate = mods & Mods.DOUBLE_TIME ? 1.5 : mods & Mods.HALF_TIME ? 0.75 : 1;
+    const preempt = (ar < 5 ? 1200 + (5 - ar) * 120 : 1200 - (ar - 5) * 150) / clockRate;
+    return preempt > 1200 ? (1800 - preempt) / 120 : 5 + (1200 - preempt) / 150;
+}
+
+function calculateCircleSize(cs: number, mods: Mods): number {
+    if (mods & Mods.HARD_ROCK)
+        cs = Math.max(cs * 1.3, 10);
+    if (mods & Mods.EASY)
+        cs /= 2;
+    return cs;
 }
 
 // version 2020-03
@@ -184,7 +224,6 @@ function drawTableForCurrentFiltering() {
     const filter_approved_status = parseInt($('#filter-approved-status').val() as string);
     const filter_mode = parseInt($('#filter-mode').val() as string);
     const filter_search_query = new SearchQuery(($('#filter-search-query').val() as string));
-    // const filter_fc_level = parseInt($('#filter-fc-level').val() as string);
     const filter_fc_level: number = 0;
     const filter_local_data = parseInt($('#filter-local-data').val() as string);
     const index_start = parseInt($('#result-index-start').val() as string) || 0;
@@ -338,7 +377,6 @@ function setQueryAccordingToHash() {
     $('#filter-approved-status').val(parseInt(obj.s));
     $('#filter-mode').val(parseInt(obj.m));
     $('#filter-search-query').val(obj.q);
-    // $('#filter-fc-level').val(parseInt(obj.l));
     $('#filter-local-data').val(parseInt(obj.d));
     $('#result-index-start').val(parseInt(obj.i));
     $('#result-count-limit').val(parseInt(obj.n));
@@ -396,8 +434,8 @@ function initUnsortedTableRows() {
     if (summaryRows.length === 0)
         return false;
 
-    if (unsortedTableRows.length !== 0 && beatmapInfoMapUsedVersion === beatmapInfoMapVersion)
-        return false;
+    // if (unsortedTableRows.length !== 0 && beatmapInfoMapUsedVersion === beatmapInfoMapVersion)
+    //     return false;
     beatmapInfoMapUsedVersion = beatmapInfoMapVersion;
     if (beatmapInfoMap.size !== 0) {
         summaryRows.forEach(row => {
@@ -406,6 +444,8 @@ function initUnsortedTableRows() {
                 row.info = info;
         });
     }
+
+    const mods = parseInt($('#difficulty-mods').val() as string);
 
     const mode_icons = [
         'fa fa-exchange',
@@ -443,14 +483,14 @@ function initUnsortedTableRows() {
                         .attr('href', `osu://dl/${row.beatmapset_id}`)
                 ]) : $()
             ]),
-            row.stars.toFixed(2),
-            row.pp.toFixed(0),
+            (row.modsInfo[mods]?.stars ?? row.stars).toFixed(2),
+            (row.modsInfo[mods]?.pp ?? row.pp).toFixed(0),
             `${Math.floor(row.hit_length / 60)}:${pad(Math.floor(row.hit_length % 60))}`,
-            row.max_combo.toString(),
-            row.approach_rate.toFixed(1),
-            row.circle_size.toFixed(1),
-            displayMinMissOrFcCount(row.total_fc),
-            displayFcFlags(row.total_fc_flags),
+            (row.modsInfo[mods]?.max_combo ?? row.max_combo).toString(),
+            (row.modsInfo[mods]?.ar ?? row.approach_rate).toFixed(1),
+            (row.modsInfo[mods]?.cs ?? row.circle_size).toFixed(1),
+            displayMinMissOrFcCount(row.modsInfo[mods]?.fc_count ?? row.total_fc),
+            displayFcFlags(row.modsInfo[mods]?.fc_flags ?? row.total_fc_flags),
             beatmapInfoMap.size === 0 ? [] :
                 [
                     $('<i class="fa">').addClass(row.info ? 'fa-check-square-o' : 'fa-square-o'),
@@ -791,6 +831,32 @@ function setMusic(uri: string | null) {
     }
 }
 
+const difficultyDataCache: Record<number, boolean> = {};
+async function changeDifficultyMods() {
+    const mods = parseInt($('#difficulty-mods').val() as string);
+
+    if (mods !== -1 && difficultyDataCache[mods] === undefined) {
+        const summaryRowMap: Record<number, SummaryRow> = {};
+        for (const row of summaryRows) {
+            summaryRowMap[row.beatmap_id] = row;
+        }
+        const lines = await (await fetch(`data/mods-${mods}.csv`)).text();
+        for (const line of lines.split('\n').filter(s => s !== '')) {
+            const values = JSON.parse(`[${line}]`) as any[];
+            const beatmap_id = values[0] as number;
+            const info = summaryRowMap[beatmap_id];
+            if (info === undefined) {
+                continue;
+            }
+            info.modsInfo[mods] = new ModsRow(beatmap_id, values[1], values[2], values[3], values[4], info);
+        };
+        difficultyDataCache[mods] = true;
+    }
+
+    initUnsortedTableRows();
+    drawTableForCurrentFiltering();
+}
+
 const LOCAL_STORAGE_KEY_VOLUME = 'list-maps/volume';
 
 async function main() {
@@ -799,11 +865,13 @@ async function main() {
         setQueryAccordingToHash();
         drawTableForCurrentFiltering();
     });
+
+    $('#difficulty-mods').on('change', changeDifficultyMods);
+
     const onChange = () => {
         drawTableForCurrentFiltering();
     };
-    for (const id of ['filter-approved-status', 'filter-mode', 'filter-fc-level', 'filter-local-data',
-        'result-index-start', 'result-count-limit'])
+    for (const id of ['filter-approved-status', 'filter-mode', 'filter-local-data', 'result-index-start', 'result-count-limit'])
         $(`#${id}`).on('change', onChange);
     for (const id of ['filter-search-query'])
         $(`#${id}`).on('input', onChange);
