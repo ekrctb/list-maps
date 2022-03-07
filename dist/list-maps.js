@@ -19,6 +19,7 @@ class SummaryRow {
             this.mode,
             this.display_string,
             this.hit_length,
+            this.stars,
             this.max_combo,
             this.approach_rate,
             this.circle_size,
@@ -28,9 +29,38 @@ class SummaryRow {
         this.approved_date = new Date(this.approved_date_string.replace(' ', 'T') + '+08:00');
         this.display_string_lower = this.display_string.toLowerCase();
         this.info = null;
-        this.stars = 0;
-        this.pp = 0;
+        this.pp = calculatePerformancePoint(this.stars, this.max_combo, this.approach_rate);
     }
+}
+var Mods;
+(function (Mods) {
+    Mods[Mods["NONE"] = 0] = "NONE";
+    Mods[Mods["EASY"] = 2] = "EASY";
+    Mods[Mods["HIDDEN"] = 8] = "HIDDEN";
+    Mods[Mods["HARD_ROCK"] = 16] = "HARD_ROCK";
+    Mods[Mods["DOUBLE_TIME"] = 64] = "DOUBLE_TIME";
+    Mods[Mods["HALF_TIME"] = 256] = "HALF_TIME";
+    Mods[Mods["FLASHLIGHT"] = 1024] = "FLASHLIGHT";
+})(Mods || (Mods = {}));
+// version 2020-03
+function calculatePerformancePoint(stars, max_combo, ar, combo = max_combo, miss = 0, mods = Mods.NONE) {
+    let value = Math.pow(5 * Math.max(1, stars / 0.0049) - 4, 2) / 100000;
+    const lengthFactor = 0.95 + 0.3 * Math.min(1, max_combo / 2500) + 0.475 * Math.max(0, Math.log10(max_combo / 2500));
+    value *= lengthFactor;
+    if (max_combo > 0)
+        value *= Math.min(Math.pow(combo / max_combo, 0.8), 1);
+    const arFactor = 1 + 0.1 * Math.max(0, ar - 9) + 0.1 * Math.max(0, ar - 10) + 0.025 * Math.max(0, 8 - ar);
+    value *= arFactor;
+    value *= Math.pow(0.97, miss);
+    if (mods & Mods.HIDDEN) {
+        if (ar <= 10)
+            value *= 1.05 + 0.075 * (10 - ar);
+        else
+            value *= 1.01 + 0.04 * (11 - Math.min(11, ar));
+    }
+    if (mods & Mods.FLASHLIGHT)
+        value *= 1.35 * lengthFactor;
+    return value;
 }
 let summaryRows = [];
 let unsortedTableRows = [];

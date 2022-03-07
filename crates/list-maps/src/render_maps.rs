@@ -26,7 +26,6 @@ pub struct Beatmap {
     pub beatmapset_id: u32,
     pub version: BString,
     pub hit_length: u32,
-    pub diff_approach: f32,
     pub diff_size: f32,
     pub playmode: Ruleset,
     pub approved: u8,
@@ -194,6 +193,7 @@ impl ScoreStatistics {
 }
 
 pub mod difficulty_attribs {
+    // this is called "Aim" in DB.
     pub const STARS: u8 = 1;
     pub const AR: u8 = 7;
     pub const MAX_COMBO: u8 = 9;
@@ -373,7 +373,7 @@ impl Opts {
         );
 
         println!(
-            "{approved_date:?},{set_id},{map_id},{status},{mode},{title:?},{hit_length},{max_combo},{ar},{cs},{total_fc},{total_fc_flags}",
+            "{approved_date:?},{set_id},{map_id},{status},{mode},{title:?},{hit_length},{nm_stars},{nm_max_combo},{nm_ar},{cs},{total_fc},{total_fc_flags}",
             approved_date = info.set.approved_date,
             set_id = info.map.beatmapset_id,
             map_id = info.map.beatmap_id,
@@ -381,8 +381,9 @@ impl Opts {
             mode = info.map.playmode.id(),
             title = title_format,
             hit_length = info.map.hit_length,
-            max_combo = info.diff_nm.max_combo,
-            ar = info.map.diff_approach,
+            nm_stars = info.diff_nm.stars,
+            nm_max_combo = info.diff_nm.max_combo,
+            nm_ar = info.diff_nm.approach_rate,
             cs = info.map.diff_size,
             total_fc = stat_total.min_miss_or_fc_count(),
             total_fc_flags = stat_total.fc_flags,
