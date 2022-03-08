@@ -460,7 +460,7 @@ async function main() {
                 {
                     const value = localStorage.getItem('list-maps/volume');
                     if (value !== null)
-                        container.songPreview.volume.set(parseInt(value));
+                        container.songPreview.volume.set(parseFloat(value));
                 }
 
                 filterTab.startIndex.set(container.startIndex);
