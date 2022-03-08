@@ -1,4 +1,2 @@
 [workspace]
-members = [
-    "crates/*"
-]
+members = ["list-maps", "osu-db-dump"]
