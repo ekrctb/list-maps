@@ -110,6 +110,10 @@ td {
     left: 50%;
 }
 
+.hidden {
+    display: none;
+}
+
 .rank-SSH, .rank-SH, .rank-SS, .rank-S, .rank-A, .rank-B, .rank-C, .rank-D, .rank-F, .rank-- {
     display: inline-block;
     margin: 0 .25rem 0 0;

@@ -20,8 +20,14 @@
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
     integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
     crossorigin="anonymous"></script>
-  <script src="dist/lib/encoding.js"></script>
-  <script src="dist/list-maps.js"></script>
+  <script src="dist/utils.js"></script>
+  <script src="dist/osu.js"></script>
+  <script src="dist/data.js"></script>
+  <script src="dist/filtering.js"></script>
+  <script src="dist/sorting.js"></script>
+  <script src="dist/hash.js"></script>
+  <script src="dist/localdata.js"></script>
+  <script src="dist/main.js"></script>
 </head>
 
 <body>
@@ -44,7 +50,7 @@
           <div class="col field">
             <label for="filter-approved-status">Ranked status</label>
             <select class="form-control" id="filter-approved-status">
-              <option value="1" selected>Ranked & Approved</option>
+              <option value="1" selected>Ranked</option>
               <option value="2">Loved</option>
               <option value="3">Both</option>
             </select>
@@ -125,35 +131,35 @@
       </div>
     </div>
   </div>
-  <div class="main">
+  <div class="main" id="table-container">
     <i class="loader fa fa-spinner fa-pulse fa-3x" id="summary-table-loader"></i>
     <table id="summary-table" class="table table-sm table-hover table-bordered table-striped table-sortable"
       style="table-layout: fixed">
       <thead>
         <tr>
-          <th class="desc-first" style="width: 8em">Date</th>
+          <th style="width: 8em">Date</th>
           <th>Map</th>
-          <th class="desc-first" style="width: 3em"><span class="narrow-header-text">Stars</span></th>
-          <th class="desc-first" style="width: 3.5em"><span class="narrow-header-text">PP</span></th>
+          <th style="width: 3em"><span class="narrow-header-text">Stars</span></th>
+          <th style="width: 3.5em"><span class="narrow-header-text">PP</span></th>
           <th style="width: 3.5em"><span class="narrow-header-text">Length</span></th>
           <th style="width: 3.5em"><span class="narrow-header-text">Combo</span></th>
           <th style="width: 2.5em"><span class="narrow-header-text">AR</span></th>
           <th style="width: 2.5em"><span class="narrow-header-text">CS</span></th>
-          <th class="desc-first" style="width: 5em">FC count</th>
-          <th class="desc-first" style="width: 4em">FC mods</th>
-          <th class="desc-first" style="width: 12em">Local data</th>
+          <th style="width: 5em">FC count</th>
+          <th style="width: 4em">FC mods</th>
+          <th style="width: 8em">Local data</th>
         </tr>
       </thead>
       <tbody>
       </tbody>
     </table>
-    <nav>
+    <nav id="page-navigation">
       <ul class="pagination justify-content-center">
         <li id="page-prev" class="page-item disabled"><a class="page-link" href="javascript:void(0)">Previous</a></li>
         <li id="page-next" class="page-item disabled"><a class="page-link" href="javascript:void(0)">Next</a></li>
       </ul>
     </nav>
-    <div class="music-control" style="display: none">
+    <div class="music-control" class="hidden">
       <audio id="audio" controls></audio>
     </div>
   </div>

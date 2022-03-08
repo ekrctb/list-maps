@@ -6,15 +6,19 @@
             "es6",
             "dom"
         ],
-        "types": [
-            "node",
-            "jquery",
-        ],
+        "types": [],
         "sourceMap": true,
         "strict": true,
         "outDir": "dist"
     },
     "include": [
-        "src/*"
+        "src/data.ts",
+        "src/filtering.ts",
+        "src/hash.ts",
+        "src/localdata.ts",
+        "src/main.ts",
+        "src/osu.ts",
+        "src/sorting.ts",
+        "src/utils.ts",
     ]
 }
