@@ -6,18 +6,18 @@ import { SongPreviewAction } from "./song-preview.js";
 import { SortState, SortAction } from "./sort.js";
 
 export interface SetAppStateAction {
-    type: 'setAppState',
-    currentMods: ModCombination,
-    filter: FilterState,
-    sort: SortState,
-    pagination: PaginationState,
+    type: "setAppState";
+    currentMods: ModCombination;
+    filter: FilterState;
+    sort: SortState;
+    pagination: PaginationState;
 }
 
 export type AppAction =
-    SetAppStateAction |
-    ModsAction |
-    DataAction |
-    FilterAction |
-    SortAction |
-    PaginationAction |
-    SongPreviewAction;
+    | SetAppStateAction
+    | ModsAction
+    | DataAction
+    | FilterAction
+    | SortAction
+    | PaginationAction
+    | SongPreviewAction;

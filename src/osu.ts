@@ -22,60 +22,61 @@ export enum RulesetId {
 
 export function calculateClockRate(mods: Mods): number {
     let rate = 1;
-    if (mods & Mods.DOUBLE_TIME)
-        rate *= 1.5;
-    if (mods & Mods.HALF_TIME)
-        rate *= 0.75;
+    if (mods & Mods.DOUBLE_TIME) rate *= 1.5;
+    if (mods & Mods.HALF_TIME) rate *= 0.75;
     return rate;
 }
 
 export function calculateApproachRate(ar: number, mods: Mods): number {
-    if (mods & Mods.HARD_ROCK)
-        ar = Math.min(ar * 1.5, 10);
-    if (mods & Mods.EASY)
-        ar /= 2;
+    if (mods & Mods.HARD_ROCK) ar = Math.min(ar * 1.5, 10);
+    if (mods & Mods.EASY) ar /= 2;
 
     const clockRate = calculateClockRate(mods);
-    const preempt = (ar < 5 ? 1200 + (5 - ar) * 120 : 1200 - (ar - 5) * 150) / clockRate;
+    const preempt =
+        (ar < 5 ? 1200 + (5 - ar) * 120 : 1200 - (ar - 5) * 150) / clockRate;
     return preempt > 1200 ? (1800 - preempt) / 120 : 5 + (1200 - preempt) / 150;
 }
 
 export function calculateCircleSize(cs: number, mods: Mods): number {
-    if (mods & Mods.HARD_ROCK)
-        cs = Math.min(cs * 1.3, 10);
-    if (mods & Mods.EASY)
-        cs /= 2;
+    if (mods & Mods.HARD_ROCK) cs = Math.min(cs * 1.3, 10);
+    if (mods & Mods.EASY) cs /= 2;
     return cs;
 }
 
 // version 2020-03
 export function calculatePerformancePoint(
-    stars: number, maxCombo: number, ar: number,
+    stars: number,
+    maxCombo: number,
+    ar: number,
     mods: Mods = Mods.NONE,
-    combo: number = maxCombo, miss = 0): number {
-
+    combo: number = maxCombo,
+    miss = 0
+): number {
     let value = Math.pow(5 * Math.max(1, stars / 0.0049) - 4, 2) / 100000;
 
-    const lengthFactor = 0.95 + 0.3 * Math.min(1, maxCombo / 2500) + 0.475 * Math.max(0, Math.log10(maxCombo / 2500));
+    const lengthFactor =
+        0.95 +
+        0.3 * Math.min(1, maxCombo / 2500) +
+        0.475 * Math.max(0, Math.log10(maxCombo / 2500));
     value *= lengthFactor;
 
-    if (maxCombo > 0)
-        value *= Math.min(Math.pow(combo / maxCombo, 0.8), 1);
+    if (maxCombo > 0) value *= Math.min(Math.pow(combo / maxCombo, 0.8), 1);
 
-    const arFactor = 1 + 0.1 * Math.max(0, ar - 9) + 0.1 * Math.max(0, ar - 10) + 0.025 * Math.max(0, 8 - ar);
+    const arFactor =
+        1 +
+        0.1 * Math.max(0, ar - 9) +
+        0.1 * Math.max(0, ar - 10) +
+        0.025 * Math.max(0, 8 - ar);
     value *= arFactor;
 
     value *= Math.pow(0.97, miss);
 
     if (mods & Mods.HIDDEN) {
-        if (ar <= 10)
-            value *= 1.05 + 0.075 * (10 - ar);
-        else
-            value *= 1.01 + 0.04 * (11 - Math.min(11, ar));
+        if (ar <= 10) value *= 1.05 + 0.075 * (10 - ar);
+        else value *= 1.01 + 0.04 * (11 - Math.min(11, ar));
     }
 
-    if (mods & Mods.FLASHLIGHT)
-        value *= 1.35 * lengthFactor;
+    if (mods & Mods.FLASHLIGHT) value *= 1.35 * lengthFactor;
 
     return value;
 }
@@ -133,8 +134,7 @@ export class SerializationReader {
             const byte = this.dv.getUint8(this.offset);
             this.offset += 1;
             result |= (byte & 0x7f) << shift;
-            if ((byte & 0x80) === 0)
-                return result;
+            if ((byte & 0x80) === 0) return result;
         }
     }
 
@@ -146,11 +146,10 @@ export class SerializationReader {
 
     public readString() {
         const header = this.readInt8();
-        if (header === 0)
-            return '';
+        if (header === 0) return "";
         const length = this.readULEB128();
         const array = this.readUint8Array(length);
-        return new TextDecoder('utf-8').decode(array);
+        return new TextDecoder("utf-8").decode(array);
     }
 
     public readInt64Rounded() {
@@ -166,10 +165,10 @@ export class SerializationReader {
         let hi = this.readUInt32();
         lo -= 3444293632; // lo bits of OFFSET
         if (lo < 0) {
-            lo += 4294967296;   // 2^32
+            lo += 4294967296; // 2^32
             hi -= 1;
         }
-        hi -= 144670508;  // hi bits of OFFSET
+        hi -= 144670508; // hi bits of OFFSET
         const ticks = hi * 4294967296 + lo;
         return new Date(ticks * 1e-4);
     }
@@ -188,7 +187,6 @@ export class SerializationReader {
 
     public readList(callback: (index: number) => void) {
         const count = this.readInt32();
-        for (let i = 0; i < count; i += 1)
-            callback(i);
+        for (let i = 0; i < count; i += 1) callback(i);
     }
 }
