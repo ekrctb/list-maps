@@ -1,24 +1,26 @@
+import { deepEqual } from "../utils.js";
+import { BeatmapInfo } from "./data.js";
 
-type BeatmapSortKey = 'date' | 'title' | 'stars' | 'pp' | 'length' | 'combo' | 'ar' | 'cs' | 'fc_count' | 'fc_mods' | 'local_data';
-type SortDirection = 'asc' | 'desc';
-type SortOrder = [BeatmapSortKey, SortDirection][];
+export type BeatmapSortKey = 'date' | 'title' | 'stars' | 'pp' | 'length' | 'combo' | 'ar' | 'cs' | 'fc_count' | 'fc_mods' | 'local_data';
+export type SortDirection = 'asc' | 'desc';
+export type SortOrder = [BeatmapSortKey, SortDirection][];
 
-interface SortState {
+export interface SortState {
     sortOrder: SortOrder,
 }
 
-type SortAction =
+export type SortAction =
     { type: 'setSortState', state: SortState } |
     { type: 'pushSort', key: BeatmapSortKey, direction: SortDirection };
 
-const DEFAULT_SORT_ORDER: SortOrder = [['date', 'desc']];
-
-const SORT_KEY_CLEAR_OTHER: Partial<Record<BeatmapSortKey, true>> = {
+export const SORT_KEY_CLEAR_OTHER: Partial<Record<BeatmapSortKey, true>> = {
     date: true,
     title: true,
     stars: true,
     pp: true,
 };
+
+const DEFAULT_SORT_ORDER: SortOrder = [['date', 'desc']];
 
 function getBeatmapSortKeyFunc(key: BeatmapSortKey): (info: BeatmapInfo) => number | string {
     switch (key) {
@@ -59,7 +61,11 @@ function sortInPlace(sortOrder: SortOrder, beatmaps: BeatmapInfo[]) {
     }
 }
 
-function pushSortOrder(sortOrder: SortOrder, key: BeatmapSortKey, direction: SortDirection): [BeatmapSortKey, SortDirection][] {
+export function sortInPlaceDefaultOrder(beatmaps: BeatmapInfo[]) {
+    sortInPlace(DEFAULT_SORT_ORDER, beatmaps);
+}
+
+export function pushSortOrder(sortOrder: SortOrder, key: BeatmapSortKey, direction: SortDirection): [BeatmapSortKey, SortDirection][] {
     if (SORT_KEY_CLEAR_OTHER[key]) {
         sortOrder = [];
     }
@@ -68,18 +74,18 @@ function pushSortOrder(sortOrder: SortOrder, key: BeatmapSortKey, direction: Sor
     return sortOrder.filter((x, i) => !deepEqual(DEFAULT_SORT_ORDER[i], x));
 }
 
-function selectLastSortKeyDir(state: SortState): [BeatmapSortKey, SortDirection] | null {
+export function selectLastSortKeyDir(state: SortState): [BeatmapSortKey, SortDirection] | null {
     return state.sortOrder[state.sortOrder.length - 1] ??
         DEFAULT_SORT_ORDER[DEFAULT_SORT_ORDER.length - 1];
 }
 
-function selectSortedMaps(state: SortState, filteredMaps: BeatmapInfo[]): BeatmapInfo[] {
+export function selectSortedMaps(state: SortState, filteredMaps: BeatmapInfo[]): BeatmapInfo[] {
     const sortedMaps = filteredMaps.slice();
     sortInPlace(state.sortOrder, sortedMaps);
     return sortedMaps;
 }
 
-function handleSortAction(state: SortState, action: SortAction): SortState {
+export function handleSortAction(state: SortState, action: SortAction): SortState {
     switch (action.type) {
         case 'setSortState':
             return action.state;

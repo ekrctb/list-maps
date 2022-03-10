@@ -1,0 +1,27 @@
+{
+    "root": true,
+    "env": {
+        "browser": true
+    },
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "project": "./tsconfig.json",
+        "sourceType": "script"
+    },
+    "settings": {
+        "react": {
+            "version": "17"
+        }
+    },
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "plugin:react/recommended"
+    ],
+    "rules": {
+        "@typescript-eslint/no-non-null-assertion": "off",
+        // using global React
+        "react/react-in-jsx-scope": "off"
+    }
+}

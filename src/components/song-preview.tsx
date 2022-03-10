@@ -1,13 +1,7 @@
-interface SongPreviewState {
-    songUri: string | null,
-    songVolume: number,
-}
+import { SongPreviewState, SongPreviewAction } from "../state/song-preview.js";
+import { classNames } from "../utils.js";
 
-type SongPreviewAction =
-    { type: 'toggleSongPreview', uri: string } |
-    { type: 'setSongVolume', value: number };
-
-const SongPreview = (props: {
+export const SongPreview = (props: {
     songPreview: SongPreviewState,
     dispatch: React.Dispatch<SongPreviewAction>,
 }) => {
@@ -25,7 +19,7 @@ const SongPreview = (props: {
         if (songUri !== null) {
             audio.src = songUri;
             audio.currentTime = 0;
-            audio.play();
+            audio.play().catch(console.error);
         } else {
             audio.removeAttribute('src');
             audio.pause();
@@ -48,13 +42,3 @@ const SongPreview = (props: {
             onEnded={handleEnded}></audio>
     </div>;
 };
-
-function handleSongPreviewAction(state: SongPreviewState, action: SongPreviewAction): SongPreviewState {
-    switch (action.type) {
-        case 'toggleSongPreview':
-            return { ...state, songUri: state.songUri === action.uri ? null : action.uri, };
-
-        case 'setSongVolume':
-            return { ...state, songVolume: action.value };
-    }
-}

@@ -1,3 +1,9 @@
+import { ApprovalStatus, RulesetId } from "../osu.js";
+import { FCMods, BeatmapInfo, LocalDataInfo } from "../state/data.js";
+import { SongPreviewAction } from "../state/song-preview.js";
+import { BeatmapSortKey, SortDirection, SortState, SortAction, selectLastSortKeyDir } from "../state/sort.js";
+import { classNames, formatTime } from "../utils.js";
+
 const SORT_FIRST_DIRECTION: Record<BeatmapSortKey, SortDirection> = {
     date: 'desc',
     title: 'asc',
@@ -46,7 +52,7 @@ const TableHeader = <K extends string>(props: {
             sortDir === 'desc' && 'descending'
         )}
         style={{ width: props.width }}
-        onClick={_ => props.onClick(props.eventKey)}>
+        onClick={() => props.onClick(props.eventKey)}>
         {props.narrow ?
             <span className="narrow-header-text">{props.children}</span> :
             props.children}
@@ -102,12 +108,12 @@ const SummaryTableRow = (props: {
     const { meta, currentMods, localDataInfo } = info;
 
     return <tr>
-        <SummaryTableRow.Date status={meta.approvalStatus}>
+        <DateCell status={meta.approvalStatus}>
             {meta.approvedDateString.slice(0, 10)}
-        </SummaryTableRow.Date>
-        <SummaryTableRow.Map setId={meta.beatmapSetId} mapId={meta.beatmapId} ruleset={meta.rulesetId} dispatch={dispatch}>
+        </DateCell>
+        <MapCell setId={meta.beatmapSetId} mapId={meta.beatmapId} ruleset={meta.rulesetId} dispatch={dispatch}>
             {meta.displayString}
-        </SummaryTableRow.Map>
+        </MapCell>
         <td>{currentMods.stars.toFixed(2)}</td>
         <td>{currentMods.performancePoint.toFixed(0)}</td>
         <td>{formatTime(currentMods.hitLength)}</td>
@@ -116,11 +122,11 @@ const SummaryTableRow = (props: {
         <td>{currentMods.circleSize.toFixed(1)}</td>
         <td>{formatFcCount(currentMods.fcCount)}</td>
         <td>{formatFcMods(currentMods.fcMods)}</td>
-        <SummaryTableRow.LocalData localDataInfo={localDataInfo} />
+        <LocalDataCell localDataInfo={localDataInfo} />
     </tr>;
 }
 
-SummaryTableRow.Date = (props: {
+const DateCell = (props: {
     status: number,
     children: React.ReactNode,
 }) => {
@@ -130,7 +136,7 @@ SummaryTableRow.Date = (props: {
     </td>;
 };
 
-SummaryTableRow.Map = (props: {
+const MapCell = (props: {
     setId: number,
     mapId: number,
     ruleset: RulesetId,
@@ -146,7 +152,7 @@ SummaryTableRow.Map = (props: {
     return <td><div className="map-cell">
         <div>
             <i className={ICON_RULESET[ruleset] ?? ''}></i>
-            <a target="_blank" href={beatmapLink}>{props.children}</a>
+            <a target="_blank" rel="noreferrer" href={beatmapLink}>{props.children}</a>
         </div>
         <div>
             <button className="btn btn-link fa fa-music" style={{ padding: "0" }} onClick={handleSongClick}></button>
@@ -155,7 +161,7 @@ SummaryTableRow.Map = (props: {
     </div></td>;
 }
 
-SummaryTableRow.LocalData = (props: {
+const LocalDataCell = (props: {
     localDataInfo: LocalDataInfo | null
 }) => {
     const { localDataInfo } = props;
@@ -180,7 +186,7 @@ const SummaryTableBody = (props: {
     </tbody>;
 }
 
-const SummaryTable = (props: {
+export const SummaryTable = (props: {
     sort: SortState,
     currentPage: BeatmapInfo[],
     dispatch: React.Dispatch<SortAction | SongPreviewAction>,

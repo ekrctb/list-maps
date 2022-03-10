@@ -1,32 +1,17 @@
-interface ModsState {
-    currentMods: ModCombination,
-    fetchMods: Partial<Record<ModCombination, 'needed' | 'fetching' | 'fetched'>>,
-}
+import { AppAction } from "../state/app.js";
+import { ANY_MODS, handleDataAction, MOD_COMBINATIONS, selectBeatmapList, selectHasUnloadedData } from "../state/data.js";
+import { handleFilterAction, LocalDataFilter, RulesetFilter, selectFilteredMaps, selectQueryExpression, StatusFilter } from "../state/filter.js";
+import { handleModsAction } from "../state/mods.js";
+import { PaginationState, PaginationAction, selectPageEnd, handlePaginationAction, selectCurrentPage } from "../state/pagination.js";
+import { handleSongPreviewAction } from "../state/song-preview.js";
+import { handleSortAction, selectSortedMaps } from "../state/sort.js";
+import { classNames } from "../utils.js";
+import { Header } from "./header.js";
+import { SongPreview } from "./song-preview.js";
+import { SummaryTable } from "./summary-table.js";
+import { UriHash } from "./uri-hash.js";
 
-type ModsAction =
-    { type: 'setCurrentMods', value: ModCombination } |
-    { type: 'addNeededMods', neededMods: ModCombination[] } |
-    { type: 'setFetchingMods', value: Mods } |
-    { type: 'setFetchedMods', value: Mods };
-
-interface SetAppStateAction {
-    type: 'setAppState',
-    currentMods: ModCombination,
-    filter: FilterState,
-    sort: SortState,
-    pagination: PaginationState,
-}
-
-type AppAction =
-    SetAppStateAction |
-    ModsAction |
-    DataAction |
-    FilterAction |
-    SortAction |
-    PaginationAction |
-    SongPreviewAction;
-
-const Loader = (_: {}) => {
+const Loader = () => {
     return <i className="loader fa fa-spinner fa-pulse fa-3x"></i>;
 };
 
@@ -61,46 +46,9 @@ const PageNavigation = (props: {
     </nav>;
 }
 
-function handleModsAction(state: ModsState, action: ModsAction): ModsState {
-    switch (action.type) {
-        case 'setCurrentMods': {
-            return {
-                ...state,
-                currentMods: action.value,
-                fetchMods: state.fetchMods[action.value] ? state.fetchMods : {
-                    ...state.fetchMods, [action.value]: 'needed'
-                },
-            };
-        }
-
-        case 'addNeededMods': {
-            if (action.neededMods.find(mods => !state.fetchMods[mods]) == undefined) {
-                return state;
-            }
-            const fetchMods = { ...state.fetchMods };
-            for (const mods of action.neededMods) {
-                fetchMods[mods] = fetchMods[mods] ?? 'needed';
-            }
-            return { ...state, fetchMods };
-        }
-
-        case 'setFetchingMods':
-            return {
-                ...state,
-                fetchMods: { ...state.fetchMods, [action.value]: 'fetching' },
-            };
-
-        case 'setFetchedMods':
-            return {
-                ...state,
-                fetchMods: { ...state.fetchMods, [action.value]: 'fetched' },
-            };
-    }
-}
-
 const APP_INIT_DATE = new Date();
 
-const App = (_: {}) => {
+export const App = () => {
     const [mods, dispatchMods] = React.useReducer(handleModsAction, {
         currentMods: ANY_MODS,
         fetchMods: {
@@ -206,8 +154,12 @@ const App = (_: {}) => {
             dispatch({ type: 'setFetchingMods', value: mods });
 
             fetch(mods === ANY_MODS ? './data/summary.csv' : `./data/mods-${mods}.csv`)
-                .then(req => req.text())
-                .then(text => {
+                .then(async req => {
+                    if (!req.ok)
+                        throw new Error(`Failed to fetch ${req.url}: ${req.statusText}`);
+
+                    const text = await req.text();
+
                     dispatch({ type: 'setFetchedMods', value: mods });
 
                     const lines = text.split('\n').filter(line => line !== '');
@@ -216,7 +168,7 @@ const App = (_: {}) => {
                     } else {
                         dispatch({ type: 'loadPerModsInfo', mods, lines });
                     }
-                });
+                }).catch(console.error);
         }
     }, [fetchMods, dispatch]);
 

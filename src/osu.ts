@@ -1,4 +1,4 @@
-enum Mods {
+export enum Mods {
     NONE = 0,
     EASY = 2,
     HIDDEN = 8,
@@ -8,19 +8,19 @@ enum Mods {
     FLASHLIGHT = 1024,
 }
 
-enum ApprovalStatus {
+export enum ApprovalStatus {
     RANKED = 1,
     APPROVED = 2,
     QUALIFIED = 3,
     LOVED = 4,
 }
 
-enum RulesetId {
+export enum RulesetId {
     OSU = 0,
     CATCH = 2,
 }
 
-function calculateClockRate(mods: Mods): number {
+export function calculateClockRate(mods: Mods): number {
     let rate = 1;
     if (mods & Mods.DOUBLE_TIME)
         rate *= 1.5;
@@ -29,7 +29,7 @@ function calculateClockRate(mods: Mods): number {
     return rate;
 }
 
-function calculateApproachRate(ar: number, mods: Mods): number {
+export function calculateApproachRate(ar: number, mods: Mods): number {
     if (mods & Mods.HARD_ROCK)
         ar = Math.min(ar * 1.5, 10);
     if (mods & Mods.EASY)
@@ -40,7 +40,7 @@ function calculateApproachRate(ar: number, mods: Mods): number {
     return preempt > 1200 ? (1800 - preempt) / 120 : 5 + (1200 - preempt) / 150;
 }
 
-function calculateCircleSize(cs: number, mods: Mods): number {
+export function calculateCircleSize(cs: number, mods: Mods): number {
     if (mods & Mods.HARD_ROCK)
         cs = Math.min(cs * 1.3, 10);
     if (mods & Mods.EASY)
@@ -49,7 +49,7 @@ function calculateCircleSize(cs: number, mods: Mods): number {
 }
 
 // version 2020-03
-function calculatePerformancePoint(
+export function calculatePerformancePoint(
     stars: number, maxCombo: number, ar: number,
     mods: Mods = Mods.NONE,
     combo: number = maxCombo, miss = 0): number {
@@ -80,7 +80,7 @@ function calculatePerformancePoint(
     return value;
 }
 
-class SerializationReader {
+export class SerializationReader {
     private dv: DataView;
     private offset: number;
 
@@ -186,7 +186,7 @@ class SerializationReader {
         return result;
     }
 
-    public readList(callback: (index: number) => any) {
+    public readList(callback: (index: number) => void) {
         const count = this.readInt32();
         for (let i = 0; i < count; i += 1)
             callback(i);

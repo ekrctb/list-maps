@@ -1,40 +1,22 @@
-interface FilterState {
+import { ApprovalStatus, RulesetId } from "../osu.js";
+import { BeatmapInfo, ModCombination, ANY_MODS, PerModsInfo, FCMods, LocalDataInfo } from "./data.js";
+
+export interface FilterState {
     statusFilter: StatusFilter,
     rulesetFilter: RulesetFilter,
     querySource: string,
     localDataFilter: LocalDataFilter,
 }
 
-type FilterAction =
+export type FilterAction =
     { type: 'setFilterState', state: FilterState } |
     { type: 'setStatusFilter', value: StatusFilter } |
     { type: 'setRulesetFilter', value: RulesetFilter } |
     { type: 'setQueryFilter', source: string } |
     { type: 'setLocalDataFilter', value: LocalDataFilter };
 
-enum StatusFilter {
-    Ranked = 1,
-    Loved = 2,
-    Both = 3,
-}
-
-enum RulesetFilter {
-    Converted = 1,
-    Specific = 2,
-    Both = 3,
-}
-
-enum LocalDataFilter {
-    NoFiltering = 0,
-    Unplayed = 1,
-    Played = 2,
-    NoData = 3,
-    HasData = 4,
-    HasDataUnplayed = 5,
-}
-
-type BeatmapInfoPreficate = (info: BeatmapInfo) => boolean;
-type BeatmapInfoKeyFunc = (info: BeatmapInfo) => number;
+export type BeatmapInfoPreficate = (info: BeatmapInfo) => boolean;
+export type BeatmapInfoKeyFunc = (info: BeatmapInfo) => number;
 
 interface QueryExpression {
     matchFuncs: BeatmapInfoPreficate[],
@@ -45,6 +27,27 @@ interface QueryExpression {
 type BeatmapInfoKeyFuncResult =
     { ok: true, func: BeatmapInfoKeyFunc } |
     { ok: false, mods: ModCombination };
+
+export enum StatusFilter {
+    Ranked = 1,
+    Loved = 2,
+    Both = 3,
+}
+
+export enum RulesetFilter {
+    Converted = 1,
+    Specific = 2,
+    Both = 3,
+}
+
+export enum LocalDataFilter {
+    NoFiltering = 0,
+    Unplayed = 1,
+    Played = 2,
+    NoData = 3,
+    HasData = 4,
+    HasDataUnplayed = 5,
+}
 
 const MODS_PREFIX: Record<string, ModCombination> = {
     any: ANY_MODS,
@@ -59,7 +62,7 @@ const MODS_PREFIX: Record<string, ModCombination> = {
     hrht: 272,
 };
 
-function selectQueryExpression(source: string, getLoadedMods: (mods: ModCombination) => number | undefined): QueryExpression {
+export function selectQueryExpression(source: string, getLoadedMods: (mods: ModCombination) => number | undefined): QueryExpression {
     const matchFuncs: BeatmapInfoPreficate[] = [];
     const normalizedParts = [];
     const neededMods = new Set<ModCombination>();
@@ -117,7 +120,7 @@ function getBeatmapInfoKeyFunc(key: string, getLoadedMods: (mods: ModCombination
 
     const prefix = Object.keys(MODS_PREFIX).find(prefix => key.startsWith(prefix + '_'));
     if (prefix !== undefined) {
-        const mods = MODS_PREFIX[prefix] as ModCombination;
+        const mods = MODS_PREFIX[prefix];
         const func = getPerModsFilterKeyFunc(key.slice(prefix.length + 1));
         if (func !== null) {
             const modsIndex = getLoadedMods(mods);
@@ -150,6 +153,7 @@ function getNumberBinRelFunc(binRel: string): ((x: number, y: number) => boolean
             return null;
     }
 }
+
 function getModsUnrelatedFilterKeyFunc(key: string): BeatmapInfoKeyFunc | null {
     switch (key) {
         case 'status':
@@ -239,7 +243,7 @@ function filterLocalData(info: LocalDataInfo | null, filter: LocalDataFilter): b
     }
 }
 
-function selectFilteredMaps(state: FilterState, loadedMods: Map<ModCombination, number>, beatmapList: BeatmapInfo[]): BeatmapInfo[] {
+export function selectFilteredMaps(state: FilterState, loadedMods: Map<ModCombination, number>, beatmapList: BeatmapInfo[]): BeatmapInfo[] {
     const { statusFilter, rulesetFilter, querySource, localDataFilter } = state;
     const { matchFuncs } = selectQueryExpression(querySource, mods => loadedMods.get(mods));
 
@@ -262,7 +266,7 @@ function selectFilteredMaps(state: FilterState, loadedMods: Map<ModCombination, 
     });
 }
 
-function handleFilterAction(state: FilterState, action: FilterAction): FilterState {
+export function handleFilterAction(state: FilterState, action: FilterAction): FilterState {
     switch (action.type) {
         case 'setFilterState':
             return action.state;

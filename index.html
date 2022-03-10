@@ -17,22 +17,13 @@
   <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.development.js"
     integrity="sha384-E9IgxDsnjKgh0777N3lXen7NwXeTsOpLLJhI01SW7idG046SRqJpsW2rJwsOYk0L"
     crossorigin="anonymous"></script>
-  <script src="dist/utils.js"></script>
-  <script src="dist/osu.js"></script>
-  <script src="dist/state/data.js"></script>
-  <script src="dist/state/filter.js"></script>
-  <script src="dist/state/sort.js"></script>
-  <script src="dist/state/pagination.js"></script>
-  <script src="dist/components/header.js"></script>
-  <script src="dist/components/summary-table.js"></script>
-  <script src="dist/components/song-preview.js"></script>
-  <script src="dist/components/uri-hash.js"></script>
-  <script src="dist/components/app.js"></script>
+  <script type="module" src="dist/components/app.js"></script>
 </head>
 
 <body>
   <div id="app"></div>
-  <script type="text/javascript">
+  <script type="module">
+    import { App } from "./dist/components/app.js";
     const target = document.getElementById('app');
     ReactDOM.render(React.createElement(App), target);
   </script>

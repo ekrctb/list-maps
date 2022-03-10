@@ -1,18 +1,19 @@
 {
     "compilerOptions": {
         "target": "es2020",
-        "module": "none",
+        "module": "ES2020",
         "moduleResolution": "node",
         "jsx": "react",
         "types": [
             "react",
-            "react-dom"
+            "react-dom",
         ],
         "sourceMap": true,
         "strict": true,
         "outDir": "dist"
     },
     "include": [
+        "src/types.d.ts",
         "src/osu.ts",
         "src/utils.ts",
         "src/state/*.ts",

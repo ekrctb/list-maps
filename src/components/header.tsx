@@ -1,3 +1,9 @@
+import { Mods } from "../osu.js";
+import { DataAction, ModCombination } from "../state/data.js";
+import { FilterAction, FilterState, LocalDataFilter, RulesetFilter, StatusFilter } from "../state/filter.js";
+import { ModsAction } from "../state/mods.js";
+import { PaginationAction, PaginationState, selectPageEnd } from "../state/pagination.js";
+import { classNames } from "../utils.js";
 
 const StatusFilterField = (props: {
     statusFilter: StatusFilter,
@@ -87,7 +93,7 @@ const LocalDataFilterField = (props: {
             <option value="0">No filtering</option>
             <option value="1">Unplayed only</option>
             <option value="2">Played only</option>
-            <option value="3">Maps you don't have</option>
+            <option value="3">Maps you don&apos;t have</option>
             <option value="4">Maps you have</option>
             <option value="5">Owning but unplayed</option>
         </select>
@@ -150,7 +156,7 @@ const LocalDataTab = (props: {
             if (file.name.includes('osu!.db')) {
                 file.arrayBuffer().then(buffer => {
                     dispatch({ type: 'loadLocalData', buffer });
-                });
+                }).catch(console.error);
                 break;
             }
         }
@@ -176,7 +182,7 @@ const Tab = <K extends string>(props: {
     return <li key={props.eventkey} className="nav-item">
         <button
             className={classNames('nav-link', props.active(props.eventkey) && 'active')}
-            onClick={_ => props.setActive(props.eventkey)}>
+            onClick={() => props.setActive(props.eventkey)}>
             {props.children}
         </button>
     </li>;
@@ -192,7 +198,7 @@ const TabPane = <K extends string>(props: {
     </div>
 };
 
-const Header = (props: {
+export const Header = (props: {
     filter: FilterState,
     pagination: PaginationState,
     currentMods: ModCombination,

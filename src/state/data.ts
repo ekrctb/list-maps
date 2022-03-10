@@ -1,4 +1,7 @@
-interface DataState {
+import { Mods, RulesetId, calculatePerformancePoint, calculateClockRate, calculateApproachRate, calculateCircleSize, SerializationReader } from "../osu.js";
+import { sortInPlaceDefaultOrder } from "./sort.js";
+
+export interface DataState {
     beatmapSummary: BeatmapSummary[],
     loadedMods: Map<ModCombination, number>,
     perMods: PerModsInfo[][],
@@ -6,15 +9,47 @@ interface DataState {
     originDate: Date,
 }
 
-type DataAction =
+export type DataAction =
     { type: 'loadBeatmapSummary', lines: string[] } |
     { type: 'loadPerModsInfo', mods: Mods, lines: string[] } |
     { type: 'loadLocalData', buffer: ArrayBuffer | null };
 
-type ModCombination = Mods | -1;
-const ANY_MODS = -1 as const;
+export type ModCombination = Mods | -1;
 
-const MOD_COMBINATIONS: ModCombination[] = [
+type SummaryDataLineType = [
+    string, // approved_date
+    number, // set_id
+    number, // map_id
+    number, // status
+    RulesetId, // mode
+    string, // title
+    number, // hit_length
+    number, // nm_stars
+    number, // max_combo
+    number, // ar
+    number, // cs
+    number, // total_fc
+    FCMods, // total_fc_flags
+];
+
+type ModsDataLineType = [
+    number, // map_id
+    Mods, // mods
+    number, // stars
+    number, // fc_count
+    FCMods, // fc_flags
+];
+
+export const ANY_MODS = -1 as const;
+
+export enum FCMods {
+    NONE = 1,
+    HD = 2,
+    FL = 4,
+    HDFL = 8,
+}
+
+export const MOD_COMBINATIONS: ModCombination[] = [
     ANY_MODS,
     Mods.NONE, Mods.EASY, Mods.HARD_ROCK,
     Mods.DOUBLE_TIME, Mods.EASY | Mods.DOUBLE_TIME, Mods.HARD_ROCK | Mods.DOUBLE_TIME,
@@ -42,7 +77,7 @@ class BeatmapMetadata {
     }
 }
 
-class PerModsInfo {
+export class PerModsInfo {
     public readonly performancePoint: number;
 
     public constructor(
@@ -60,9 +95,9 @@ class PerModsInfo {
     }
 
     public static parse(line: string, meta: BeatmapMetadata): PerModsInfo {
-        const values = JSON.parse(`[${line}]`) as any[];
-        const beatmapId = values[0] as number;
-        const mods = values[1] as Mods;
+        const values = JSON.parse(`[${line}]`) as ModsDataLineType;
+        const beatmapId = values[0];
+        const mods = values[1];
         const hitLength = meta.hitLength / calculateClockRate(mods);
         const approachRate = calculateApproachRate(meta.approachRate, mods);
         const circleSize = calculateCircleSize(meta.circleSize, mods);
@@ -85,7 +120,7 @@ class PerModsInfo {
     public static readonly NO_DATA = new PerModsInfo(0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
 
-class LocalDataInfo {
+export class LocalDataInfo {
     public readonly hasLastPlayedDate: boolean;
     public readonly hasAnyInfo: boolean;
 
@@ -206,22 +241,15 @@ function parseOsuStableDatabase(buffer: ArrayBuffer): Map<number, LocalDataInfo>
     sr.readString();
     const beatmapCount = sr.readInt32();
 
-    const infoMap = new Map();
+    const infoMap = new Map<number, LocalDataInfo>();
     for (let i = 0; i < beatmapCount; i += 1) {
-        let beatmap = readBeatmap();
+        const beatmap = readBeatmap();
         if (beatmap.beatmapId !== 0)
             infoMap.set(beatmap.beatmapId, beatmap);
     }
 
     console.log(`loaded ${beatmapCount} local beatmaps.`);
     return infoMap;
-}
-
-enum FCMods {
-    NONE = 1,
-    HD = 2,
-    FL = 4,
-    HDFL = 8,
 }
 
 class BeatmapSummary {
@@ -233,8 +261,8 @@ class BeatmapSummary {
     ) {
     }
 
-    public static parse(line: string): BeatmapSummary {
-        const values = JSON.parse(`[${line}]`) as any[];
+    public static parse(this: void, line: string): BeatmapSummary {
+        const values = JSON.parse(`[${line}]`) as SummaryDataLineType;
         const meta = new BeatmapMetadata(
             values[1], values[2], values[0],
             values[3], values[4], values[5],
@@ -244,7 +272,7 @@ class BeatmapSummary {
     }
 }
 
-class BeatmapInfo {
+export class BeatmapInfo {
     public constructor(
         public readonly meta: BeatmapMetadata,
         public readonly perMods: PerModsInfo[],
@@ -255,11 +283,11 @@ class BeatmapInfo {
     }
 }
 
-function selectHasUnloadedData(state: DataState, currentMods: ModCombination): boolean {
+export function selectHasUnloadedData(state: DataState, currentMods: ModCombination): boolean {
     return state.loadedMods.get(currentMods) === undefined;
-};
+}
 
-function selectBeatmapList(state: DataState, currentMods: ModCombination): BeatmapInfo[] {
+export function selectBeatmapList(state: DataState, currentMods: ModCombination): BeatmapInfo[] {
     const modsIndex = state.loadedMods.get(currentMods);
     if (modsIndex === undefined) {
         return [];
@@ -271,11 +299,11 @@ function selectBeatmapList(state: DataState, currentMods: ModCombination): Beatm
         state.localData.get(summary.meta.beatmapId) || null,
         state.originDate,
     ));
-    sortInPlace(DEFAULT_SORT_ORDER, beatmapList);
+    sortInPlaceDefaultOrder(beatmapList);
     return beatmapList;
 }
 
-function handleDataAction(state: DataState, action: DataAction): DataState {
+export function handleDataAction(state: DataState, action: DataAction): DataState {
     switch (action.type) {
         case 'loadBeatmapSummary': {
             const beatmapSummary = action.lines.map(BeatmapSummary.parse);
@@ -305,7 +333,7 @@ function handleDataAction(state: DataState, action: DataAction): DataState {
         case 'loadLocalData': {
             return {
                 ...state,
-                localData: action.buffer ? parseOsuStableDatabase(action.buffer) : new Map(),
+                localData: action.buffer ? parseOsuStableDatabase(action.buffer) : new Map<number, LocalDataInfo>(),
             };
         }
     }

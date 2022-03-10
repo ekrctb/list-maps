@@ -1,3 +1,9 @@
+import { SetAppStateAction } from "../state/app.js";
+import { ANY_MODS, MOD_COMBINATIONS, ModCombination } from "../state/data.js";
+import { StatusFilter, RulesetFilter, LocalDataFilter, FilterState, selectQueryExpression } from "../state/filter.js";
+import { PaginationState } from "../state/pagination.js";
+import { BeatmapSortKey, SortOrder, pushSortOrder, SortState } from "../state/sort.js";
+import { findToString, clamp } from "../utils.js";
 
 type HashStringKey = 's' | 'm' | 'q' | 'd' | 'i' | 'n' | 'o' | 'x';
 
@@ -53,7 +59,7 @@ const parseHashString = (hash: string): SetAppStateAction => {
     for (const part of (map.get('o') ?? HASH_DEFAULT.o).split('.')) {
         const value = parseInt(part);
         const abs = Math.abs(value);
-        const key = Object.entries(HASH_SORT_KEY_MAP).find(([_, v]) => v === abs);
+        const key = Object.entries(HASH_SORT_KEY_MAP).find(x => x[1] === abs);
         if (key !== undefined) {
             const dir = value > 0 ? 'asc' : 'desc';
             sortOrder = pushSortOrder(sortOrder, key[0] as BeatmapSortKey, dir);
@@ -83,7 +89,7 @@ const parseHashString = (hash: string): SetAppStateAction => {
     };
 };
 
-const UriHash = (props: {
+export const UriHash = (props: {
     currentMods: ModCombination,
     filter: FilterState,
     sort: SortState,
