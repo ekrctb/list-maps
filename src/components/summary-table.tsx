@@ -213,6 +213,7 @@ const MapCell = (props: {
         props.dispatch({
             type: "toggleSongPreview",
             uri: `https://b.ppy.sh/preview/${setId}.mp3`,
+            key: mapId.toString(),
         });
     };
     return (

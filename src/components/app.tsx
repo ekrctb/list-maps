@@ -121,6 +121,7 @@ export const App = () => {
         handleSongPreviewAction,
         {
             songUri: null,
+            songKey: null,
             songVolume: 1,
         }
     );

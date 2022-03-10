@@ -8,7 +8,7 @@ export const SongPreview = (props: {
     dispatch: React.Dispatch<SongPreviewAction>;
 }) => {
     const {
-        songPreview: { songUri, songVolume },
+        songPreview: { songUri, songKey, songVolume },
         dispatch,
     } = props;
 
@@ -40,7 +40,7 @@ export const SongPreview = (props: {
             audio.removeAttribute("src");
             audio.pause();
         }
-    }, [songUri]);
+    }, [songKey, songUri]);
 
     const handleVolumeChange = () => {
         const audio = audioRef.current!;
@@ -48,8 +48,8 @@ export const SongPreview = (props: {
     };
 
     const handleEnded = () => {
-        if (songUri !== null)
-            dispatch({ type: "toggleSongPreview", uri: songUri });
+        if (songUri !== null && songKey !== null)
+            dispatch({ type: "toggleSongPreview", uri: songUri, key: songKey });
     };
 
     return (
