@@ -223,6 +223,8 @@ function getPerModsFilterKeyFunc(
             return (info) => info.performancePoint;
         case "length":
             return (info) => info.hitLength;
+        case "bpm":
+            return (info) => info.bpm;
         case "ar":
             return (info) => info.approachRate;
         case "cs":

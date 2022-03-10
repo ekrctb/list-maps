@@ -36,6 +36,7 @@ pub struct Beatmap {
     pub diff_size: f32,
     pub playmode: Ruleset,
     pub approved: i8,
+    pub bpm: f32,
 }
 
 #[derive(serde::Deserialize)]
@@ -444,7 +445,7 @@ impl Opts {
         );
 
         writeln!(writer,
-            "{approved_date:?},{set_id},{map_id},{status},{mode},{title:?},{hit_length},{nm_stars},{max_combo},{ar},{cs},{total_fc},{total_fc_flags}",
+            "{approved_date:?},{set_id},{map_id},{status},{mode},{title:?},{hit_length},{bpm},{nm_stars},{max_combo},{ar},{cs},{total_fc},{total_fc_flags}",
             approved_date = info.set.approved_date,
             set_id = info.map.beatmapset_id,
             map_id = info.map.beatmap_id,
@@ -452,6 +453,7 @@ impl Opts {
             mode = info.map.playmode.id(),
             title = title_format,
             hit_length = info.map.hit_length,
+            bpm = info.map.bpm,
             nm_stars = info.nm_stars,
             max_combo = info.max_combo,
             ar = info.map.diff_approach,

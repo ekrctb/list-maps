@@ -24,6 +24,7 @@ const HASH_SORT_KEY_MAP: Record<BeatmapSortKey, number> = {
     stars: 3,
     pp: 4,
     length: 5,
+    bpm: 12,
     combo: 6,
     ar: 7,
     cs: 8,

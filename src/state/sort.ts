@@ -7,6 +7,7 @@ export type BeatmapSortKey =
     | "stars"
     | "pp"
     | "length"
+    | "bpm"
     | "combo"
     | "ar"
     | "cs"
@@ -45,6 +46,8 @@ function getBeatmapSortKeyFunc(
             return (info) => info.currentMods.stars;
         case "length":
             return (info) => info.meta.hitLength;
+        case "bpm":
+            return (info) => info.meta.bpm;
         case "combo":
             return (info) => info.meta.maxCombo;
         case "ar":

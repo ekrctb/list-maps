@@ -32,6 +32,7 @@ type SummaryDataLineType = [
     RulesetId, // mode
     string, // title
     number, // hit_length
+    number, // bpm
     number, // nm_stars
     number, // max_combo
     number, // ar
@@ -82,6 +83,7 @@ class BeatmapMetadata {
         public readonly rulesetId: number,
         public readonly displayString: string,
         public readonly hitLength: number,
+        public readonly bpm: number,
         public readonly maxCombo: number,
         public readonly approachRate: number,
         public readonly circleSize: number
@@ -100,6 +102,7 @@ export class PerModsInfo {
         public readonly maxCombo: number,
         public readonly stars: number,
         public readonly hitLength: number,
+        public readonly bpm: number,
         public readonly approachRate: number,
         public readonly circleSize: number,
         public readonly fcCount: number,
@@ -117,7 +120,9 @@ export class PerModsInfo {
         const values = JSON.parse(`[${line}]`) as ModsDataLineType;
         const beatmapId = values[0];
         const mods = values[1];
-        const hitLength = meta.hitLength / calculateClockRate(mods);
+        const clockRate = calculateClockRate(mods);
+        const hitLength = meta.hitLength / clockRate;
+        const bpm = meta.bpm * clockRate;
         const approachRate = calculateApproachRate(meta.approachRate, mods);
         const circleSize = calculateCircleSize(meta.circleSize, mods);
         return new PerModsInfo(
@@ -126,6 +131,7 @@ export class PerModsInfo {
             meta.maxCombo,
             values[2],
             hitLength,
+            bpm,
             approachRate,
             circleSize,
             values[3],
@@ -141,14 +147,13 @@ export class PerModsInfo {
             meta.maxCombo,
             summary.noModStars,
             meta.hitLength,
+            meta.bpm,
             meta.approachRate,
             meta.circleSize,
             summary.totalFCCount,
             summary.totalFCMods
         );
     }
-
-    public static readonly NO_DATA = new PerModsInfo(0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
 
 export class LocalDataInfo {
@@ -316,11 +321,12 @@ class BeatmapSummary {
             values[4],
             values[5],
             values[6],
-            values[8],
+            values[7],
             values[9],
-            values[10]
+            values[10],
+            values[11]
         );
-        return new BeatmapSummary(meta, values[7], values[11], values[12]);
+        return new BeatmapSummary(meta, values[8], values[12], values[13]);
     }
 }
 

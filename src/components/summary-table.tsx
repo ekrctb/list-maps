@@ -16,6 +16,7 @@ const SORT_FIRST_DIRECTION: Record<BeatmapSortKey, SortDirection> = {
     stars: "desc",
     pp: "desc",
     length: "asc",
+    bpm: "asc",
     combo: "asc",
     ar: "asc",
     cs: "asc",
@@ -114,6 +115,9 @@ const SummaryTableHeader = (props: {
                 <TableHeader eventKey="length" {...headerProps}>
                     Length
                 </TableHeader>
+                <TableHeader eventKey="bpm" {...headerProps}>
+                    BPM
+                </TableHeader>
                 <TableHeader eventKey="combo" {...headerProps}>
                     Combo
                 </TableHeader>
@@ -180,6 +184,7 @@ const SummaryTableRow = (props: {
                 {currentMods.performancePoint.toFixed(0)}
             </td>
             <td className="text-end">{formatTime(currentMods.hitLength)}</td>
+            <td className="text-end">{currentMods.bpm.toFixed(0)}</td>
             <td className="text-end">{currentMods.maxCombo}</td>
             <td className="text-end">{currentMods.approachRate.toFixed(1)}</td>
             <td className="text-end">{currentMods.circleSize.toFixed(1)}</td>
