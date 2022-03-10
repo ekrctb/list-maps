@@ -5,164 +5,37 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title>Catch the beat beatmap list</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-    integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"
     integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
   <link href="https://fonts.googleapis.com/css?family=Lato:400,700,900i" rel="stylesheet">
   <link href="index.css" rel="stylesheet">
-  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
-    integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+  <script src="https://unpkg.com/react@17.0.2/umd/react.development.js"
+    integrity="sha384-xQwCoNcK/7P3Lpv50IZSEbJdpqbToWEODAUyI/RECaRXmOE2apWt7htari8kvKa/"
     crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
-    integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
-    crossorigin="anonymous"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
-    integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+  <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.development.js"
+    integrity="sha384-E9IgxDsnjKgh0777N3lXen7NwXeTsOpLLJhI01SW7idG046SRqJpsW2rJwsOYk0L"
     crossorigin="anonymous"></script>
   <script src="dist/utils.js"></script>
   <script src="dist/osu.js"></script>
-  <script src="dist/data.js"></script>
-  <script src="dist/filtering.js"></script>
-  <script src="dist/sorting.js"></script>
-  <script src="dist/hash.js"></script>
-  <script src="dist/localdata.js"></script>
-  <script src="dist/main.js"></script>
+  <script src="dist/state/data.js"></script>
+  <script src="dist/state/filter.js"></script>
+  <script src="dist/state/sort.js"></script>
+  <script src="dist/state/pagination.js"></script>
+  <script src="dist/components/header.js"></script>
+  <script src="dist/components/summary-table.js"></script>
+  <script src="dist/components/song-preview.js"></script>
+  <script src="dist/components/uri-hash.js"></script>
+  <script src="dist/components/app.js"></script>
 </head>
 
 <body>
-  <div class="header container-fluid">
-    <div id="alerts"></div>
-    <ul class="nav nav-tabs">
-      <li class="nav-item">
-        <a class="nav-link active" data-toggle="tab" href="#filters">Filters</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" data-toggle="tab" href="#local-setting">Local data</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" data-toggle="tab" href="#about">About</a>
-      </li>
-    </ul>
-    <div class="tab-content">
-      <div class="tab-pane active" id="filters">
-        <div class="row">
-          <div class="col field">
-            <label for="filter-approved-status">Ranked status</label>
-            <select class="form-control" id="filter-approved-status">
-              <option value="1" selected>Ranked</option>
-              <option value="2">Loved</option>
-              <option value="3">Both</option>
-            </select>
-          </div>
-          <div class="col field">
-            <label for="filter-mode">Mode</label>
-            <select class="form-control" id="filter-mode">
-              <option value="1">Converted</option>
-              <option value="2">Specific</option>
-              <option value="3" selected>Both</option>
-            </select>
-          </div>
-          <div class="col field">
-            <label for="filter-search-query">Search query</label>
-            <input type="text" class="form-control" id="filter-search-query"
-              placeholder="queries like ar=9 are supported">
-          </div>
-          <div class="col field">
-            <label for="difficulty-mods">Mod combination</label>
-            <select class="form-control" id="difficulty-mods">
-              <option value="-1">Any</option>
-              <option value="0">No Mod</option>
-              <option value="16">Hard Rock</option>
-              <option value="2">Easy</option>
-              <option value="64">Double Time</option>
-              <option value="80">HR + DT</option>
-              <option value="66">EZ + DT</option>
-              <option value="256">Half Time</option>
-              <option value="272">HR + HT</option>
-              <option value="258">EZ + HT</option>
-            </select>
-          </div>
-          <div class="col field">
-            <label for="filter-local-data">Local data</label>
-            <select class="form-control" id="filter-local-data">
-              <option value="0" selected>No filtering</option>
-              <option value="1">Unplayed only</option>
-              <option value="2">Played only</option>
-              <option value="3">Maps you don't have</option>
-              <option value="4">Maps you have</option>
-              <option value="5">Owning but unplayed</option>
-            </select>
-          </div>
-          <div class="col">
-            <p>
-              <a href="#">Reset filters</a><br />
-              <input id="result-index-start" style="width: 3em" value="0" />..<span id="result-index-end">0</span>
-              of <span id="num-results">0 maps</span><br />
-              <input id="result-count-limit" style="width: 3em" value="100" /> per page
-            </p>
-          </div>
-        </div>
-      </div>
-      <div class="tab-pane" id="local-setting">
-        <div class="row">
-          <div class="col field">
-            <label for="db-file-input">Load osu!.db file</label>
-            <input type="file" multiple class="form-control-file" id="db-file-input">
-          </div>
-        </div>
-      </div>
-      <div class="tab-pane" id="about">
-        <div class="row">
-          <div class="col">
-            <ul>
-              <li><i class="fa fa-github"></i><a href="https://github.com/ekrctb/list-maps">GitHub repository</a></li>
-              <li><i class="fa fa-pencil"></i><a href="https://osu.ppy.sh/community/forums/topics/630917">Forum post</a>
-              </li>
-              <li><i class="fa fa-user"></i><a href="https://osu.ppy.sh/users/4497706">Creator's osu! profile</a></li>
-            </ul>
-          </div>
-          <div class="col">
-            <i class="fa fa-search"></i>
-            Search query expressions:<br>
-            <code>status=r mode=o stars&lt;=5 pp&gt;=200 length&lt;=200 combo&lt;1000 ar&gt;9 cs&lt;5 lv&gt;2 played&lt;=10 unplayed!= rank=S date&gt;7</code>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="main" id="table-container">
-    <i class="loader fa fa-spinner fa-pulse fa-3x" id="summary-table-loader"></i>
-    <table id="summary-table" class="table table-sm table-hover table-bordered table-striped table-sortable"
-      style="table-layout: fixed">
-      <thead>
-        <tr>
-          <th style="width: 8em">Date</th>
-          <th>Map</th>
-          <th style="width: 3em"><span class="narrow-header-text">Stars</span></th>
-          <th style="width: 3.5em"><span class="narrow-header-text">PP</span></th>
-          <th style="width: 3.5em"><span class="narrow-header-text">Length</span></th>
-          <th style="width: 3.5em"><span class="narrow-header-text">Combo</span></th>
-          <th style="width: 2.5em"><span class="narrow-header-text">AR</span></th>
-          <th style="width: 2.5em"><span class="narrow-header-text">CS</span></th>
-          <th style="width: 5em">FC count</th>
-          <th style="width: 4em">FC mods</th>
-          <th style="width: 8em">Local data</th>
-        </tr>
-      </thead>
-      <tbody>
-      </tbody>
-    </table>
-    <nav id="page-navigation">
-      <ul class="pagination justify-content-center">
-        <li id="page-prev" class="page-item disabled"><a class="page-link" href="javascript:void(0)">Previous</a></li>
-        <li id="page-next" class="page-item disabled"><a class="page-link" href="javascript:void(0)">Next</a></li>
-      </ul>
-    </nav>
-    <div class="music-control" class="hidden">
-      <audio id="audio" controls></audio>
-    </div>
-  </div>
+  <div id="app"></div>
+  <script type="text/javascript">
+    const target = document.getElementById('app');
+    ReactDOM.render(React.createElement(App), target);
+  </script>
 </body>
 
 </html>

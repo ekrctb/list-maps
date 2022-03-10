@@ -1,111 +1,28 @@
-
-function assertElement<T extends Element>(element: Element | null, tagName: string): asserts element is T {
-    if (element?.tagName.toLowerCase() !== tagName) {
-        console.error(`Unexpected element. ${tagName} expected.`, element);
-        throw new Error('Unexpected element');
-    }
+function classNames(...classNames: (string | false)[]): string {
+    return classNames.filter(name => name).join(' ');
 }
 
-function createElement<K extends keyof HTMLElementTagNameMap>(tagName: K, attrs?: Partial<HTMLElementTagNameMap[K]>, children?: Node[]): HTMLElementTagNameMap[K] {
-    const element = document.createElement(tagName);
-
-    if (attrs !== undefined) {
-        for (const key in attrs) {
-            element[key] = attrs[key]!;
-        }
-    }
-
-    if (children !== undefined) {
-        for (const node of children)
-            element.appendChild(node);
-    }
-
-    return element;
+function clamp(value: number, min: number, max: number): number {
+    if (!(min <= value))
+        value = min;
+    if (!(value <= max))
+        value = max;
+    return value;
 }
 
-class EventStream<E> {
-    private readonly events: E[] = [];
-    private resolve: (() => void) | null = null;
-    private reject: ((error: Error) => void) | null = null;
-    private readonly stopCallbacks: (() => void)[] = [];
-
-    public trigger(event: E) {
-        const resolve = this.resolve;
-
-        this.resolve = this.reject = null;
-
-        this.events.push(event);
-
-        if (resolve !== null) {
-            resolve();
-        }
-    }
-
-    public registerStopCallback(cb: () => void) {
-        this.stopCallbacks.push(cb);
-    }
-
-    public pop(): E | null {
-        if (this.events.length === 0)
-            return null;
-        return this.events.splice(0, 1)[0];
-    }
-
-    public wait(): Promise<void> {
-        if (this.events.length > 0) {
-            return Promise.resolve();
-        }
-
-        return new Promise((resolve, reject) => {
-            this.resolve = resolve;
-            this.reject = reject;
-        });
-    }
-
-    public stop() {
-        const stopCallbacks = this.stopCallbacks;
-        const reject = this.reject;
-
-        this.resolve = this.reject = null;
-        this.stopCallbacks.length = 0;
-
-        for (const cb of stopCallbacks) {
-            try {
-                cb();
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        if (reject !== null) {
-            reject(new Error('Canceled'));
-        }
-    }
+function formatTime(seconds: number): string {
+    const min = Math.floor(seconds / 60);
+    const sec = Math.floor(seconds) - min * 60;
+    if (sec < 10)
+        return `${min}:0${sec}`;
+    else
+        return `${min}:${sec}`;
 }
 
-interface EventSink<E> {
-    trigger(event: E): void;
-    registerStopCallback(cb: () => void): void;
+function findToString<T extends number | string>(target: string | undefined | null, list: T[]): T | undefined {
+    return list.find(l => l.toString() === target);
 }
 
-class ValueChange<T extends number | string | null> {
-    public constructor(private value: T, private changed: boolean) {
-    }
-
-    public get(): T {
-        return this.value;
-    }
-
-    public set(newValue: T) {
-        if (this.value !== newValue) {
-            this.value = newValue;
-            this.changed = true;
-        }
-    }
-
-    public pop(): boolean {
-        const changed = this.changed;
-        this.changed = false;
-        return changed;
-    }
+function deepEqual<T>(first: T, second: T): boolean {
+    return JSON.stringify(first) === JSON.stringify(second);
 }

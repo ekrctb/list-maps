@@ -1,24 +1,21 @@
 {
     "compilerOptions": {
-        "target": "es6",
+        "target": "es2020",
         "module": "none",
-        "lib": [
-            "es6",
-            "dom"
+        "moduleResolution": "node",
+        "jsx": "react",
+        "types": [
+            "react",
+            "react-dom"
         ],
-        "types": [],
         "sourceMap": true,
         "strict": true,
         "outDir": "dist"
     },
     "include": [
-        "src/data.ts",
-        "src/filtering.ts",
-        "src/hash.ts",
-        "src/localdata.ts",
-        "src/main.ts",
         "src/osu.ts",
-        "src/sorting.ts",
         "src/utils.ts",
+        "src/state/*.ts",
+        "src/components/*.tsx",
     ]
 }
