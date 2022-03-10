@@ -2,22 +2,20 @@
 
 ## Run locally
 
-First, download a osu! database dump file from <https://data.ppy.sh/>.
+First, download an osu! database dump file from <https://data.ppy.sh/>.
 
 ```shell
-# Change this variable to the latest available dump.
-DUMP_DATE=2021_06_01
-
-curl -O "https://data.ppy.sh/${DUMP_DATE}_performance_fruits_top.tar.bz2"
-tar -xf "${DUMP_DATE}_performance_fruits_top.tar.bz2"
-
 # This environment variable will be used.
-export OSU_DUMP_DIR="${DUMP_DATE}_performance_fruits_top"
+# Change this variable to the latest available dump.
+export OSU_DUMP_DIR="2022_03_01_performance_catch_top_10000"
+
+curl -O "https://data.ppy.sh/${OSU_DUMP_DIR}.tar.bz2"
+tar -xf "${OSU_DUMP_DIR}.tar.bz2"
 ```
 
-Building the command requires [https://www.rust-lang.org/](Rust) with `cargo`.
+Building the command-line tool requires [https://www.rust-lang.org/](Rust) with `cargo`.
 
-Make sure your current directory is the top directory of this repository, then you can then build and run the command by `cargo run`:
+Make sure your current directory is the root directory of this repository, then you can build and run the command by `cargo run`:
 
 ```shell
 # Build the command if not built yet, then run the command to print the usage
@@ -34,7 +32,7 @@ SUBCOMMANDS:
     render-maps    Output beatmap summary file to be used by the html/js interface.
 ```
 
-Note that the environment variable `OSU_DUMP_DIR` is automatically used as the `--dump-dir` argument.
+The environment variable `OSU_DUMP_DIR` is automatically used as the `--dump-dir` argument.
 
 To get the usage of a subcommand, append `--help`:
 
@@ -52,20 +50,28 @@ FLAGS:
     -h, --help       Prints help information
         --ctb        on the osu!catch specific map
         --no-dt      with DoubleTime (or NightCore) mod disabled.
-        --no-ez      with Easy mod disabled.
 ...
 ```
 
-To generate the file used by the frontend, run:
+To generate the data files used by the frontend, run `render-maps` subcommand:
 
 ```shell
 mkdir -p data
-cargo run --release -- render-maps > ./data/summary.csv
+
+# Maps with star ratings no less than 4 are included.
+# Use `--min-stars` to change this.
+cargo run --release -- render-maps --output-dir data
 ```
 
-To compile the frontend html and js files, run:
+To frontend is written in TypeScript. To build JavaScript files, run:
 
 ```shell
 npm install
 tsc
+```
+
+To access the frontend, you need to run a web server locally, as it doesn't work under a file URI. For example:
+
+```shell
+python3 -m http.server
 ```
