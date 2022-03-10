@@ -8,7 +8,7 @@ import {
     SortAction,
     selectLastSortKeyDir,
 } from "../state/sort.js";
-import { classNames, formatTime } from "../utils.js";
+import { formatTime } from "../utils.js";
 
 const SORT_FIRST_DIRECTION: Record<BeatmapSortKey, SortDirection> = {
     date: "desc",
@@ -31,12 +31,17 @@ const ICON_APPROVAL_STATUS: Partial<Record<number, string>> = {
     [ApprovalStatus.LOVED]: "fa fa-heart-o",
 };
 
-const ICON_RULESET = {
+const ICON_RULESET: Record<RulesetId, string> = {
     [RulesetId.OSU]: "fa fa-exchange",
     [RulesetId.CATCH]: "fa fa-tint",
 };
 
-const LOCAL_DATA_RANK_NAMES = [
+const ICON_SORT: Record<SortDirection, string> = {
+    ["asc"]: "fa fa-caret-up",
+    ["desc"]: "fa fa-caret-down",
+};
+
+const LOCAL_DATA_RANK_NAMES: string[] = [
     "SSH",
     "SH",
     "SS",
@@ -53,27 +58,16 @@ const TableHeader = <K extends string>(props: {
     eventKey: K;
     sortDir: (key: K) => SortDirection | null;
     onClick: (key: K) => void;
-    width: string;
-    narrow?: boolean;
+    width?: string;
     children: React.ReactNode;
 }) => {
     const sortDir = props.sortDir(props.eventKey);
     return (
-        <th
-            key={props.eventKey}
-            className={classNames(
-                sortDir !== null && "sorted",
-                sortDir === "asc" && "ascending",
-                sortDir === "desc" && "descending"
-            )}
-            style={{ width: props.width }}
-            onClick={() => props.onClick(props.eventKey)}
-        >
-            {props.narrow ? (
-                <span className="narrow-header-text">{props.children}</span>
-            ) : (
-                props.children
-            )}
+        <th className="th">
+            <button onClick={() => props.onClick(props.eventKey)}>
+                {sortDir && <i className={ICON_SORT[sortDir]}></i>}
+                <span>{props.children}</span>
+            </button>
         </th>
     );
 };
@@ -82,14 +76,14 @@ const SummaryTableHeader = (props: {
     sort: SortState;
     dispatch: React.Dispatch<SortAction>;
 }) => {
-    type HeaderId = BeatmapSortKey;
-
     const lastSortKeyDir = selectLastSortKeyDir(props.sort);
-    const sortDir = (key: HeaderId) =>
+
+    const sortDir = (key: BeatmapSortKey) =>
         lastSortKeyDir !== null && key === lastSortKeyDir[0]
             ? lastSortKeyDir[1]
             : null;
-    const handleHeaderClick = (key: HeaderId) => {
+
+    const handleHeaderClick = (key: BeatmapSortKey) => {
         const currentDir = sortDir(key);
         const direction =
             currentDir === null
@@ -100,53 +94,44 @@ const SummaryTableHeader = (props: {
         props.dispatch({ type: "pushSort", key, direction });
     };
 
-    const TH = (props: {
-        eventKey: HeaderId;
-        width: string;
-        narrow?: boolean;
-        children: React.ReactNode;
-    }) => (
-        <TableHeader sortDir={sortDir} onClick={handleHeaderClick} {...props}>
-            {props.children}
-        </TableHeader>
-    );
+    const headerProps = { sortDir, onClick: handleHeaderClick };
 
     return (
         <thead>
             <tr>
-                <TH eventKey="date" width="8em">
+                <TableHeader eventKey="date" {...headerProps}>
                     Date
-                </TH>
-                <TH eventKey="title" width="auto">
+                </TableHeader>
+                <TableHeader eventKey="title" {...headerProps}>
                     Map
-                </TH>
-                <TH eventKey="stars" width="3em" narrow>
+                </TableHeader>
+                <TableHeader eventKey="stars" {...headerProps}>
                     Stars
-                </TH>
-                <TH eventKey="pp" width="3.5em" narrow>
+                </TableHeader>
+                <TableHeader eventKey="pp" {...headerProps}>
                     PP
-                </TH>
-                <TH eventKey="length" width="3.5em" narrow>
+                </TableHeader>
+                <TableHeader eventKey="length" {...headerProps}>
                     Length
-                </TH>
-                <TH eventKey="combo" width="3.5em" narrow>
+                </TableHeader>
+                <TableHeader eventKey="combo" {...headerProps}>
                     Combo
-                </TH>
-                <TH eventKey="ar" width="2.5em" narrow>
+                </TableHeader>
+                <TableHeader eventKey="ar" {...headerProps}>
                     AR
-                </TH>
-                <TH eventKey="cs" width="2.5em" narrow>
+                </TableHeader>
+                <TableHeader eventKey="cs" {...headerProps}>
                     CS
-                </TH>
-                <TH eventKey="fc_count" width="5em">
+                </TableHeader>
+                <TableHeader eventKey="fc_count" {...headerProps}>
                     FC count
-                </TH>
-                <TH eventKey="fc_mods" width="4em">
+                </TableHeader>
+                <TableHeader eventKey="fc_mods" {...headerProps}>
                     FC mods
-                </TH>
-                <TH eventKey="local_data" width="8em">
+                </TableHeader>
+                <TableHeader eventKey="local_data" {...headerProps}>
                     Local data
-                </TH>
+                </TableHeader>
             </tr>
         </thead>
     );
@@ -190,12 +175,14 @@ const SummaryTableRow = (props: {
             >
                 {meta.displayString}
             </MapCell>
-            <td>{currentMods.stars.toFixed(2)}</td>
-            <td>{currentMods.performancePoint.toFixed(0)}</td>
-            <td>{formatTime(currentMods.hitLength)}</td>
-            <td>{currentMods.maxCombo}</td>
-            <td>{currentMods.approachRate.toFixed(1)}</td>
-            <td>{currentMods.circleSize.toFixed(1)}</td>
+            <td className="text-end">{currentMods.stars.toFixed(2)}</td>
+            <td className="text-end">
+                {currentMods.performancePoint.toFixed(0)}
+            </td>
+            <td className="text-end">{formatTime(currentMods.hitLength)}</td>
+            <td className="text-end">{currentMods.maxCombo}</td>
+            <td className="text-end">{currentMods.approachRate.toFixed(1)}</td>
+            <td className="text-end">{currentMods.circleSize.toFixed(1)}</td>
             <td>{formatFcCount(currentMods.fcCount)}</td>
             <td>{formatFcMods(currentMods.fcMods)}</td>
             <LocalDataCell localDataInfo={localDataInfo} />
@@ -303,7 +290,7 @@ export const SummaryTable = (props: {
 
     return (
         <table
-            className="table table-sm table-hover table-bordered table-striped table-sortable"
+            className="table table-hover table-striped"
             style={{ tableLayout: "fixed" }}
         >
             <SummaryTableHeader sort={sort} dispatch={dispatch} />

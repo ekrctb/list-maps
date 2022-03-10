@@ -40,7 +40,7 @@ export const SongPreview = (props: {
     };
 
     return (
-        <div className={classNames("music-control", !songUri && "hidden")}>
+        <div className={classNames("music-control", !songUri && "d-none")}>
             <audio
                 ref={audioRef}
                 controls

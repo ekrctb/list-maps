@@ -1,35 +1,27 @@
-a:visited {
-    color: #0056b3 !important;
-}
-
-a,
-button.btn-link {
-    text-decoration: none;
-}
-
 html {
     font-size: 14px;
+}
+
+.js #about-tab-content {
+    display: none;
 }
 
 .app {
     width: 100vw;
     height: 100vh;
-    display: flex;
-    flex-flow: column;
     font-family: Lato, Arial, sans-serif;
 }
 
 .header {
-    flex-shrink: 0;
     padding: 0;
 }
 
 .header > .nav {
-    padding: 0px 15px 0 15px;
+    padding-left: 15px;
 }
 
 .header > .tab-content {
-    padding: 5px 15px 10px 15px;
+    padding: 10px 15px;
     border-bottom: 1px solid #e9ecef;
 }
 
@@ -39,13 +31,82 @@ html {
 }
 
 .field > label {
-    margin-left: 0.28571429rem;
-    font-size: 0.92857143em;
     font-weight: 700;
 }
 
-td {
+td,
+th {
     white-space: nowrap;
+}
+
+.th {
+    padding: 0 !important;
+}
+
+.th > button {
+    width: 100%;
+    padding: 0.5em 0 0.5em 0.4em;
+    background-color: #f9fafb;
+    border: 1px solid #e9ecef;
+    text-align: left;
+    font-weight: 700;
+    overflow-x: hidden;
+}
+
+.th > button:hover {
+    background-color: #f3f3f3;
+}
+
+.th > button > i {
+    opacity: 0.8;
+    margin: 0 0 0 -0.3em;
+    width: 1em;
+}
+
+.th:nth-child(1) {
+    width: 8em;
+}
+
+.th:nth-child(3),
+.th:nth-child(4),
+.th:nth-child(5),
+.th:nth-child(6) {
+    width: 3.5em;
+}
+
+.th:nth-child(7),
+.th:nth-child(8) {
+    width: 2.5em;
+}
+
+.th:nth-child(9),
+.th:nth-child(10) {
+    width: 5em;
+}
+
+.th:nth-child(11) {
+    width: 8em;
+}
+
+.th:nth-child(5) > button,
+.th:nth-child(6) > button,
+.th:nth-child(9) > button,
+.th:nth-child(10) > button {
+    padding-left: 0;
+    text-align: center;
+}
+
+.table > :not(:first-child) {
+    border-top: 0;
+}
+
+a,
+.btn-link {
+    text-decoration: none;
+}
+
+a:visited {
+    color: #0056b3 !important;
 }
 
 .map-cell {
@@ -58,58 +119,6 @@ td {
     text-overflow: ellipsis;
 }
 
-.narrow-header-text {
-    display: inline-block;
-    margin-left: 50%;
-    transform: translateX(-50%);
-}
-
-.table-bordered td,
-.table-bordered th {
-    border: 1px solid #e9ecef;
-}
-
-.table-bordered thead th {
-    border-bottom-width: 1px;
-}
-
-.table-bordered :not(:first-child) {
-    border-top-width: 0;
-}
-
-#summary-table,
-#summary-table th {
-    border-top-width: 0px;
-}
-
-.table-sortable th {
-    background-color: #f9fafb;
-    padding: 0.5em 0.6em;
-}
-
-.table-sortable th {
-    cursor: pointer;
-}
-
-.table-sortable th.sorted,
-.table-sortable th:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-.table-sortable th::after {
-    font-family: FontAwesome;
-    opacity: 0.8;
-    margin: 0 0 0 0.5em;
-}
-
-.table-sortable th.descending::after {
-    content: "\f0d7";
-}
-
-.table-sortable th.ascending::after {
-    content: "\f0d8";
-}
-
 .fa {
     margin: 0 0.25rem 0 0;
     width: 1.18em;
@@ -120,10 +129,6 @@ td {
     position: absolute;
     top: 50%;
     left: 50%;
-}
-
-.hidden {
-    display: none;
 }
 
 .rank-SSH,

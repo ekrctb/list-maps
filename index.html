@@ -23,14 +23,17 @@
 <body>
   <div id="app-container">
   </div>
+  <noscript>
+    JavaScript is required.
+  </noscript>
+  <script type="text/javascript">
+    document.body.classList.add('js');
+  </script>
   <script type="module">
     import { App } from "./dist/components/app.js";
     const target = document.getElementById('app-container');
     ReactDOM.render(React.createElement(App), target);
   </script>
-  <noscript>
-    JavaScript is required.
-  </noscript>
   <div id="about-tab-content" class="row">
     <div class="col">
       <i class="fa fa-search"></i>Search query expressions
