@@ -21,12 +21,79 @@
 </head>
 
 <body>
-  <div id="app"></div>
+  <div id="app-container">
+  </div>
   <script type="module">
     import { App } from "./dist/components/app.js";
-    const target = document.getElementById('app');
+    const target = document.getElementById('app-container');
     ReactDOM.render(React.createElement(App), target);
   </script>
+  <noscript>
+    JavaScript is required.
+  </noscript>
+  <div id="about-tab-content" class="row">
+    <div class="col">
+      <i class="fa fa-search"></i>Search query expressions
+      <p>
+        In addition to searching beatmap artist / title / difficulty / mapper by text,
+        you can use operators <code>=, !=, &lt; &gt; &lt;=, &gt;=</code> to compare value.
+        For example, <code>ar&lt;=9</code> means AR less or equal to 9.
+      </p>
+      <p>
+        Values below are based on the current mod combination by default.
+        You can specify another mod combination by writing <code><var>mods</var>_<var>value</var></code>, like <code>hr_stars&lt;5</code>.
+        The list of mod combinations are <code>any, nm, ez, hr, dt, ezdt, hrdt, ezht, hrht</code>.
+      </p>
+      <ul>
+        <li><code>stars</code>: Star rating.</li>
+        <li><code>pp</code>: PP for the perfect score.</li>
+        <li><code>length</code>: Length in seconds.</li>
+        <li><code>ar</code>: Approach rate.</li>
+        <li><code>cs</code>: Circle size.</li>
+        <li><code>fc</code>:
+          A positive number represents the number of FCs with the current mods.
+          A negative number represents the minimum number of misses with the current mods.
+          Zero represents the beatmap had no scores with the current mods.
+        </li>
+        <li><code>miss</code>: Negation of <code>fc</code>.</li>
+        <li><code>fcmods</code>:
+          Bit flags representing whether there was an FC with the current mods plus additional mods (HD, FL).
+          2 for HD, 4 for FL, 8 for HDFL.
+        </li>
+        <li><code>hdfc=0/1</code>: Whether there was an FC with +HD or +HDFL.</li>
+        <li><code>flfc=0/1</code>: Whether there was an FC with +FL or +HDFL.</li>
+      </ul>
+      <p>Other values invariant to the mod combination:</p>
+      <ul>
+        <li><code>status</code>: 1 for Ranked, 2 for Approved, 4 for Loved.</li>
+        <li><code>mode</code>: 0 for osu! (converted), 2 for osu!catch (specific).</li>
+        <li><code>date</code>: Days since the beatmap is approved.</li>
+      </ul>
+      </ul>
+      <p>After a local data is loaded:</p>
+      <ul>
+        <li><code>has=0/1</code>: Whether the beatmap is present in the local data.</li>
+        <li><code>unplayed=0/1</code>: Whether the beatmap is marked as unplayed in the local data.</li>
+        <li><code>played</code>: Days since the last played date in the local data.</li>
+        <li><code>rank</code>: 0 for SSH, 1 for SH, 2 for SS, 3 for S, 4 for A, ..., 9 for no data.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <ul>
+        <li>
+          <i class="fa fa-github"></i>
+          <a href="https://github.com/ekrctb/list-maps">GitHub repository</a>
+        </li>
+        <li>
+          <i class="fa fa-pencil"></i>
+          <a href="https://osu.ppy.sh/community/forums/topics/630917">Forum post</a>
+        </li>
+        <li>
+          <i class="fa fa-user"></i>
+          <a href="https://osu.ppy.sh/users/4497706">Creator&apos;s osu! profile</a>
+        </li>
+      </ul>
+    </div>
+  </div>
 </body>
-
 </html>

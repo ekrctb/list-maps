@@ -263,6 +263,21 @@ const LocalDataTab = (props: { dispatch: React.Dispatch<DataAction> }) => {
     );
 };
 
+const AboutTab = () => {
+    const nodeRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const node = nodeRef.current!;
+        const content = document.getElementById("about-tab-content")!;
+        const childNodes = Array.from(content.childNodes);
+        for (const child of childNodes) {
+            node.appendChild(child);
+        }
+    }, []);
+
+    return <div className="row" ref={nodeRef}></div>;
+};
+
 const Tab = <K extends string>(props: {
     eventkey: K;
     active: (key: K) => boolean;
@@ -345,6 +360,9 @@ export const Header = (props: {
                 </TabPane>
                 <TabPane eventkey="local_data" active={active}>
                     <LocalDataTab dispatch={props.dispatch} />
+                </TabPane>
+                <TabPane eventkey="about" active={active}>
+                    <AboutTab />
                 </TabPane>
             </div>
         </div>

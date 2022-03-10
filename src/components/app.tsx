@@ -275,7 +275,7 @@ export const App = () => {
     const filteredCount = filteredMaps.length;
 
     return (
-        <>
+        <div className="app">
             <Header
                 currentMods={currentMods}
                 filteredCount={filteredCount}
@@ -305,6 +305,6 @@ export const App = () => {
                 pagination={pagination}
                 dispatch={dispatch}
             />
-        </>
+        </div>
     );
 };
