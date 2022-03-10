@@ -1,5 +1,7 @@
 import { SongPreviewState, SongPreviewAction } from "../state/song-preview.js";
-import { classNames } from "../utils.js";
+import { clamp, classNames } from "../utils.js";
+
+const LOCAL_STORAGE_KEY = "list-maps/volume";
 
 export const SongPreview = (props: {
     songPreview: SongPreviewState;
@@ -13,8 +15,19 @@ export const SongPreview = (props: {
     const audioRef = React.useRef<HTMLAudioElement>(null);
 
     React.useEffect(() => {
+        const volume = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (volume !== null) {
+            dispatch({
+                type: "setSongVolume",
+                value: clamp(parseFloat(volume), 0, 1),
+            });
+        }
+    }, [dispatch]);
+
+    React.useEffect(() => {
         const audio = audioRef.current!;
         audio.volume = songVolume;
+        localStorage.setItem(LOCAL_STORAGE_KEY, songVolume.toString());
     }, [songVolume]);
 
     React.useEffect(() => {
