@@ -24,6 +24,7 @@ pub struct BeatmapSet {
     pub creator: BString,
     #[serde(deserialize_with = "deserialize_approved_date")]
     pub approved_date: BString,
+    pub track_id: Option<u32>,
 }
 
 #[derive(serde::Deserialize)]
@@ -445,7 +446,7 @@ impl Opts {
         );
 
         writeln!(writer,
-            "{approved_date:?},{set_id},{map_id},{status},{mode},{title:?},{hit_length},{bpm},{nm_stars},{max_combo},{ar},{cs},{total_fc},{total_fc_flags}",
+            "{approved_date:?},{set_id},{map_id},{status},{mode},{title:?},{hit_length},{bpm},{nm_stars},{max_combo},{ar},{cs},{total_fc},{total_fc_flags},{track_id}",
             approved_date = info.set.approved_date,
             set_id = info.map.beatmapset_id,
             map_id = info.map.beatmap_id,
@@ -460,6 +461,7 @@ impl Opts {
             cs = info.map.diff_size,
             total_fc = stat_total.min_miss_or_fc_count(),
             total_fc_flags = stat_total.fc_flags,
+            track_id = info.set.track_id.unwrap_or(0),
         )?;
         Ok(())
     }

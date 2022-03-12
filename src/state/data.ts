@@ -38,7 +38,8 @@ type SummaryDataLineType = [
     number, // ar
     number, // cs
     number, // total_fc
-    FCMods // total_fc_flags
+    FCMods, // total_fc_flags
+    number // track_id
 ];
 
 type ModsDataLineType = [
@@ -86,7 +87,8 @@ class BeatmapMetadata {
         public readonly bpm: number,
         public readonly maxCombo: number,
         public readonly approachRate: number,
-        public readonly circleSize: number
+        public readonly circleSize: number,
+        public readonly trackId: number
     ) {
         this.approvedDate = new Date(approvedDateString.replace(" ", "T"));
         this.displayStringLowerCased = displayString.toLowerCase();
@@ -324,7 +326,8 @@ class BeatmapSummary {
             values[7],
             values[9],
             values[10],
-            values[11]
+            values[11],
+            values[14]
         );
         return new BeatmapSummary(meta, values[8], values[12], values[13]);
     }
