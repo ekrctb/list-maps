@@ -114,7 +114,7 @@ export class PerModsInfo {
             stars,
             maxCombo,
             approachRate,
-            mods
+            mods === ANY_MODS ? Mods.NONE : mods
         );
     }
 
