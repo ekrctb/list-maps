@@ -192,6 +192,8 @@ function getModsUnrelatedFilterKeyFunc(key: string): BeatmapInfoKeyFunc | null {
             return (info) =>
                 (info.originDate.valueOf() - info.meta.approvedDate.valueOf()) /
                 86400e3;
+        case "combo":
+            return (info) => info.meta.maxCombo;
         case "track":
             return (info) => info.meta.trackId;
         case "fa":
